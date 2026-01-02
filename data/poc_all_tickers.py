@@ -1,7 +1,6 @@
 
 # === Importa funzione get_all_tickers da my_tickers.py ===
-import sys
-sys.path.append('/content/drive/MyDrive/ColabNotebooks1')
+
 from my_tickers import get_all_tickers
  
 import pandas as pd
@@ -185,8 +184,8 @@ else:
 # === Salvataggio file Excel (sovrascrivibile nella stessa settimana) ===
 week_number = datetime.now().isocalendar()[1]
 
-BASE = "/content/drive/MyDrive/automatico"
-OUTPUT_DIR = f"{BASE}/output"
+BASE = os.path.dirname(os.path.abspath(__file__))  # = data/
+OUTPUT_DIR = os.path.join(BASE, "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 file_name = f"POC_p{poc_period}_s{soglia_poc}_week_{week_number}.xlsx"
@@ -196,3 +195,4 @@ df_risultati.to_excel(file_path, index=False)
 
 print(f"\n✅ File salvato (sovrascritto se esiste): {file_path}")
  
+
