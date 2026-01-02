@@ -27,10 +27,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas numpy openpyxl yfinance pydrive2
 
-      # 4️⃣ Crea file credenziali Service Account
+            # 4️⃣ Crea file credenziali Service Account
       - name: Create Google Drive credentials
+        env:
+          GDRIVE_SA_JSON: ${{ secrets.GDRIVE_SA_JSON }}
         run: |
           echo "$GDRIVE_SA_JSON" > service_account_credentials.json
+
+
 
       # 5️⃣ Esegui master.py
       - name: Run Master Script
