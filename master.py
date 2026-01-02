@@ -16,9 +16,10 @@ ST_SCRIPT = os.path.join(BASE_DIR, "merge_poc_supertrend.py")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Se usi moduli in Drive / ColabNotebooks
-sys.path.append('/content/drive/MyDrive/ColabNotebooks1')
-from my_tickers import get_all_tickers  # Assicurati che il file sia presente
+# aggiunge la cartella data ai moduli
+sys.path.append(os.path.join(os.getcwd(), "data"))
+
+from my_tickers import get_all_tickers
 
 # ID CARTELLA GOOGLE DRIVE (quella condivisa con Service Account)
 DRIVE_FOLDER_ID = "1BLzEbOTRiBtFRZGmrNhRAYXTyP8Nd3Hj"
