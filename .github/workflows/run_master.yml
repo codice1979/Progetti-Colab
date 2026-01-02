@@ -21,11 +21,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 3️⃣ Installa dipendenze
+      # 3️⃣ Installa dipendenze (CORRETTE)
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas numpy openpyxl yfinance pydrive2
+          pip install pandas numpy openpyxl yfinance google-api-python-client google-auth
 
       # 4️⃣ Crea file credenziali Service Account
       - name: Create Google Drive credentials
