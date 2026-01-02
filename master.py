@@ -1,4 +1,5 @@
 import os
+import sys
 from datetime import datetime
 import subprocess
 
@@ -15,7 +16,11 @@ ST_SCRIPT = os.path.join(BASE_DIR, "merge_poc_supertrend.py")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# ID CARTELLA GOOGLE DRIVE (quella che hai condiviso)
+# Se usi moduli in Drive / ColabNotebooks
+sys.path.append('/content/drive/MyDrive/ColabNotebooks1')
+from my_tickers import get_all_tickers  # Assicurati che il file sia presente
+
+# ID CARTELLA GOOGLE DRIVE (quella condivisa con Service Account)
 DRIVE_FOLDER_ID = "1BLzEbOTRiBtFRZGmrNhRAYXTyP8Nd3Hj"
 
 # =========================
@@ -41,9 +46,10 @@ credentials = service_account.Credentials.from_service_account_file(
 drive_service = build("drive", "v3", credentials=credentials)
 
 def upload_to_drive(filepath):
+    """Carica un file Excel su Google Drive nella cartella condivisa"""
     file_metadata = {
         "name": os.path.basename(filepath),
-        "parents": [DRIVE_FOLDER_ID]
+        "parents": [{"id": DRIVE_FOLDER_ID}]
     }
 
     media = MediaFileUpload(
@@ -99,7 +105,4 @@ for cfg in configs:
         f"POC_ST_p{poc_period_file}_s{soglia_poc}_week_{week_number}.xlsx"
     )
 
-    if os.path.exists(st_file):
-        upload_to_drive(st_file)
-
-print("\n✅ WORKFLOW COMPLETATO CON SUCCESSO")
+    upload_to_drive(st_file)
