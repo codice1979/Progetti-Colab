@@ -33,6 +33,10 @@ poc_file_path = os.path.join(
 )
 
 print("📂 Carico:", poc_file_path)
+
+if not os.path.exists(poc_file_path):
+    raise FileNotFoundError(f"❌ File POC non trovato: {poc_file_path}")
+
 df_poc = pd.read_excel(poc_file_path)
 
 print("📊 Colonne POC:", list(df_poc.columns))
@@ -45,49 +49,63 @@ possible_ticker_cols = ["Ticker", "ticker", "TICKER", "Symbol", "SYMBOL"]
 ticker_col = next((c for c in possible_ticker_cols if c in df_poc.columns), None)
 
 if ticker_col is None:
-    raise KeyError("❌ Colonna ticker non trovata nel POC")
+    raise KeyError("❌ Colonna ticker non trovata nel file POC")
 
 print(f"✅ Colonna ticker usata: {ticker_col}")
 
 # =========================
-# SUPERTREND (LOGICA SEMPLICE, SCALARE)
+# SUPERTREND (LOGICA SEMPLICE E SCALARE)
 # =========================
 def supertrend_last(df, period=10, multiplier=3):
+    """
+    Ritorna True se trend UP, False se DOWN
+    Implementazione volutamente semplice e stabile
+    """
     hl2 = (df["High"] + df["Low"]) / 2
     atr = (df["High"] - df["Low"]).rolling(period).mean()
 
     upperband = hl2 + multiplier * atr
     lowerband = hl2 - multiplier * atr
 
-    trend = True
+    trend_up = True
+
     for i in range(1, len(df)):
         if df["Close"].iloc[i] > upperband.iloc[i - 1]:
-            trend = True
+            trend_up = True
         elif df["Close"].iloc[i] < lowerband.iloc[i - 1]:
-            trend = False
+            trend_up = False
 
-    return bool(trend)
+    return bool(trend_up)
 
 # =========================
 # CALCOLO SUPERTREND
 # =========================
-results = []
+rows = []
 
-for ticker in df_poc[ticker_col].dropna().unique():
+tickers = (
+    df_poc[ticker_col]
+    .dropna()
+    .astype(str)
+    .unique()
+)
+
+for ticker in tickers:
     try:
         data = yf.download(
             ticker,
             period="2y",
             interval="1wk",
-            progress=False
+            progress=False,
+            auto_adjust=True
         )
 
         if data.empty or len(data) < 20:
+            print(f"⚠️ Dati insufficienti per {ticker}")
             continue
 
         st_up = supertrend_last(data)
 
-        results.append({
+        rows.append({
             ticker_col: ticker,
             "ST_Weekly": "UP" if st_up else "DOWN"
         })
@@ -95,12 +113,17 @@ for ticker in df_poc[ticker_col].dropna().unique():
     except Exception as e:
         print(f"⚠️ Errore su {ticker}: {e}")
 
-df_st = pd.DataFrame(results)
+# =========================
+# DATAFRAME SUPERTREND
+# =========================
+df_st = pd.DataFrame(rows)
 
-# =========================
-# MERGE CORRETTO
-# =========================
-df_final = df_poc.merge(df_st, on=ticker_col, how="left")
+if df_st.empty:
+    print("⚠️ Nessun segnale SuperTrend calcolato")
+    df_final = df_poc.copy()
+else:
+    # Merge sicuro (Ticker presente in entrambi)
+    df_final = df_poc.merge(df_st, on=ticker_col, how="left")
 
 # =========================
 # EXPORT
@@ -112,4 +135,4 @@ output_file_path = os.path.join(
 
 df_final.to_excel(output_file_path, index=False)
 
-print(f"✅ File creato:\n{output_file_path}")
+print(f"\n✅ File POC + SuperTrend creato con successo:\n{output_file_path}")
