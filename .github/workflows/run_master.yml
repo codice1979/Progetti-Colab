@@ -48,7 +48,7 @@ jobs:
 
       # 6️⃣ Upload outputs come artifacts
       - name: Upload Output Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: poc-supertrend-output
           path: data/output/
