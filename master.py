@@ -50,7 +50,7 @@ def upload_to_drive(filepath):
     """Carica un file Excel su Google Drive nella cartella condivisa"""
     file_metadata = {
         "name": os.path.basename(filepath),
-        "parents": [{"id": DRIVE_FOLDER_ID}]
+        "parents": [DRIVE_FOLDER_ID]
     }
 
     media = MediaFileUpload(
@@ -61,7 +61,8 @@ def upload_to_drive(filepath):
     drive_service.files().create(
         body=file_metadata,
         media_body=media,
-        fields="id"
+        fields="id",
+        supportsAllDrives=True
     ).execute()
 
     print(f"✅ Caricato su Drive: {os.path.basename(filepath)}")
