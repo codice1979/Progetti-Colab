@@ -3,10 +3,6 @@ import sys
 from datetime import datetime
 import subprocess
 
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-
 # =========================
 # CONFIGURAZIONE BASE
 # =========================
@@ -21,9 +17,6 @@ sys.path.append(os.path.join(os.getcwd(), "data"))
 
 from my_tickers import get_all_tickers
 
-# ID CARTELLA GOOGLE DRIVE (quella condivisa con Service Account)
-DRIVE_FOLDER_ID = "1BLzEbOTRiBtFRZGmrNhRAYXTyP8Nd3Hj"
-
 # =========================
 # CONFIGURAZIONI POC
 # =========================
@@ -33,39 +26,6 @@ configs = [
 ]
 
 week_number = datetime.now().isocalendar()[1]
-
-# =========================
-# AUTENTICAZIONE GOOGLE DRIVE
-# =========================
-SCOPES = ["https://www.googleapis.com/auth/drive.file"]
-
-credentials = service_account.Credentials.from_service_account_file(
-    "service_account_credentials.json",
-    scopes=SCOPES
-)
-
-drive_service = build("drive", "v3", credentials=credentials)
-
-def upload_to_drive(filepath):
-    """Carica un file Excel su Google Drive nella cartella condivisa"""
-    file_metadata = {
-        "name": os.path.basename(filepath),
-        "parents": [DRIVE_FOLDER_ID]
-    }
-
-    media = MediaFileUpload(
-        filepath,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-    drive_service.files().create(
-        body=file_metadata,
-        media_body=media,
-        fields="id",
-        supportsAllDrives=True
-    ).execute()
-
-    print(f"✅ Caricato su Drive: {os.path.basename(filepath)}")
 
 # =========================
 # ESECUZIONE MASTER
@@ -91,7 +51,7 @@ for cfg in configs:
         print("❌ Errore POC")
         continue
 
-    upload_to_drive(poc_file)
+    print(f"✅ File salvato localmente: {poc_file}")
 
     # 2️⃣ MERGE + SUPERTREND
     ret_st = subprocess.run(
@@ -107,4 +67,4 @@ for cfg in configs:
         f"POC_ST_p{poc_period_file}_s{soglia_poc}_week_{week_number}.xlsx"
     )
 
-    upload_to_drive(st_file)
+    print(f"✅ File salvato localmente: {st_file}")
