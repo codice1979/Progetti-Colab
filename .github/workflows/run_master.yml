@@ -45,3 +45,10 @@ jobs:
       - name: Run Master Script
         run: |
           python master.py
+
+      # 6️⃣ Upload outputs come artifacts
+      - name: Upload Output Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: poc-supertrend-output
+          path: data/output/
