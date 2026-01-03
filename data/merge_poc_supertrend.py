@@ -45,7 +45,6 @@ print("📊 Colonne POC:", list(df_poc.columns))
 # TROVA COLONNA TICKER
 # =========================
 possible_ticker_cols = ["Ticker", "ticker", "TICKER", "Symbol", "SYMBOL"]
-
 ticker_col = next((c for c in possible_ticker_cols if c in df_poc.columns), None)
 
 if ticker_col is None:
@@ -54,15 +53,28 @@ if ticker_col is None:
 print(f"✅ Colonna ticker usata: {ticker_col}")
 
 # =========================
-# SUPERTREND (LOGICA SEMPLICE E SCALARE)
+# SUPERTREND (ROBUSTO)
 # =========================
 def supertrend_last(df, period=10, multiplier=3):
     """
     Ritorna True se trend UP, False se DOWN
-    Implementazione volutamente semplice e stabile
+    Implementazione semplice, SCALARE e robusta
     """
-    hl2 = (df["High"] + df["Low"]) / 2
-    atr = (df["High"] - df["Low"]).rolling(period).mean()
+
+    # Normalizza colonne (yfinance può restituire MultiIndex)
+    df = df.copy()
+    df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
+
+    required_cols = {"High", "Low", "Close"}
+    if not required_cols.issubset(df.columns):
+        raise ValueError("Colonne OHLC mancanti")
+
+    high = df["High"].astype(float)
+    low = df["Low"].astype(float)
+    close = df["Close"].astype(float)
+
+    hl2 = (high + low) / 2
+    atr = (high - low).rolling(period).mean()
 
     upperband = hl2 + multiplier * atr
     lowerband = hl2 - multiplier * atr
@@ -70,12 +82,15 @@ def supertrend_last(df, period=10, multiplier=3):
     trend_up = True
 
     for i in range(1, len(df)):
-        if df["Close"].iloc[i] > upperband.iloc[i - 1]:
+        if pd.isna(upperband.iloc[i - 1]) or pd.isna(lowerband.iloc[i - 1]):
+            continue
+
+        if close.iloc[i] > upperband.iloc[i - 1]:
             trend_up = True
-        elif df["Close"].iloc[i] < lowerband.iloc[i - 1]:
+        elif close.iloc[i] < lowerband.iloc[i - 1]:
             trend_up = False
 
-    return bool(trend_up)
+    return trend_up
 
 # =========================
 # CALCOLO SUPERTREND
@@ -122,7 +137,6 @@ if df_st.empty:
     print("⚠️ Nessun segnale SuperTrend calcolato")
     df_final = df_poc.copy()
 else:
-    # Merge sicuro (Ticker presente in entrambi)
     df_final = df_poc.merge(df_st, on=ticker_col, how="left")
 
 # =========================
