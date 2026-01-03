@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 3️⃣ Installa dipendenze (COMPLETO E CORRETTO)
+      # 3️⃣ Installa dipendenze
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -30,23 +30,14 @@ jobs:
             numpy \
             openpyxl \
             yfinance \
-            google-api-python-client \
-            google-auth \
             lxml
 
-      # 4️⃣ Crea file credenziali Service Account
-      - name: Create Google Drive credentials
-        env:
-          GDRIVE_SA_JSON: ${{ secrets.GDRIVE_SA_JSON }}
-        run: |
-          echo "$GDRIVE_SA_JSON" > service_account_credentials.json
-
-      # 5️⃣ Esegui master.py
+      # 4️⃣ Esegui master.py
       - name: Run Master Script
         run: |
           python master.py
 
-      # 6️⃣ Upload outputs come artifacts
+      # 5️⃣ Upload outputs come artifacts
       - name: Upload Output Artifacts
         uses: actions/upload-artifact@v4
         with:
