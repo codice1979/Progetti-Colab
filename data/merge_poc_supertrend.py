@@ -3,6 +3,7 @@ import argparse
 from datetime import datetime
 import pandas as pd
 import yfinance as yf
+import numpy as np
 
 # =========================
 # PATH LOCALI
@@ -21,7 +22,6 @@ args = parser.parse_args()
 
 poc_period = args.poc_period
 soglia_poc = args.soglia_poc
-
 week_number = datetime.now().isocalendar()[1]
 
 # =========================
@@ -38,7 +38,6 @@ if not os.path.exists(poc_file_path):
     raise FileNotFoundError(f"❌ File POC non trovato: {poc_file_path}")
 
 df_poc = pd.read_excel(poc_file_path)
-
 print("📊 Colonne POC:", list(df_poc.columns))
 
 # =========================
@@ -53,47 +52,48 @@ if ticker_col is None:
 print(f"✅ Colonna ticker usata: {ticker_col}")
 
 # =========================
-# SUPERTREND (ROBUSTO)
+# SUPERTREND (STILE TradingView)
 # =========================
-def supertrend_last(df, period=10, multiplier=3):
-    """
-    Ritorna True se trend UP, False se DOWN
-    Implementazione semplice, SCALARE e robusta
-    """
-
-    # Normalizza colonne (yfinance può restituire MultiIndex)
+def supertrend_series(df, period=10, multiplier=3):
     df = df.copy()
     df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
 
-    required_cols = {"High", "Low", "Close"}
-    if not required_cols.issubset(df.columns):
-        raise ValueError("Colonne OHLC mancanti")
-
-    high = df["High"].astype(float)
-    low = df["Low"].astype(float)
-    close = df["Close"].astype(float)
+    high = df["High"].values
+    low = df["Low"].values
+    close = df["Close"].values
 
     hl2 = (high + low) / 2
-    atr = (high - low).rolling(period).mean()
+    atr = pd.Series(high - low).rolling(period).mean().values
 
     upperband = hl2 + multiplier * atr
     lowerband = hl2 - multiplier * atr
 
-    trend_up = True
+    st = np.full(len(close), np.nan)
+    direction = 1
 
-    for i in range(1, len(df)):
-        if pd.isna(upperband.iloc[i - 1]) or pd.isna(lowerband.iloc[i - 1]):
-            continue
+    for i in range(period, len(close)):
+        if close[i] > upperband[i - 1]:
+            direction = 1
+        elif close[i] < lowerband[i - 1]:
+            direction = -1
 
-        if close.iloc[i] > upperband.iloc[i - 1]:
-            trend_up = True
-        elif close.iloc[i] < lowerband.iloc[i - 1]:
-            trend_up = False
+        st[i] = lowerband[i] if direction == 1 else upperband[i]
 
-    return trend_up
+    return st
+
+def st_distance_pct(df):
+    if df.empty or len(df) < 20:
+        return np.nan
+
+    st = supertrend_series(df)
+    if np.isnan(st[-1]):
+        return np.nan
+
+    close = df["Close"].iloc[-1]
+    return round((close - st[-1]) / st[-1] * 100, 1)
 
 # =========================
-# CALCOLO SUPERTREND
+# CALCOLO ST MULTI-TIMEFRAME
 # =========================
 rows = []
 
@@ -106,38 +106,28 @@ tickers = (
 
 for ticker in tickers:
     try:
-        data = yf.download(
-            ticker,
-            period="2y",
-            interval="1wk",
-            progress=False,
-            auto_adjust=True
-        )
-
-        if data.empty or len(data) < 20:
-            print(f"⚠️ Dati insufficienti per {ticker}")
-            continue
-
-        st_up = supertrend_last(data)
+        df_4h = yf.download(ticker, period="60d", interval="4h", progress=False, auto_adjust=True)
+        df_d = yf.download(ticker, period="6mo", interval="1d", progress=False, auto_adjust=True)
+        df_w = yf.download(ticker, period="1y", interval="1wk", progress=False, auto_adjust=True)
+        df_m = yf.download(ticker, period="2y", interval="1mo", progress=False, auto_adjust=True)
 
         rows.append({
             ticker_col: ticker,
-            "ST_Weekly": "UP" if st_up else "DOWN"
+            "ST_4H": st_distance_pct(df_4h),
+            "ST_Daily": st_distance_pct(df_d),
+            "ST_Weekly": st_distance_pct(df_w),
+            "ST_Monthly": st_distance_pct(df_m),
         })
 
     except Exception as e:
         print(f"⚠️ Errore su {ticker}: {e}")
 
-# =========================
-# DATAFRAME SUPERTREND
-# =========================
 df_st = pd.DataFrame(rows)
 
-if df_st.empty:
-    print("⚠️ Nessun segnale SuperTrend calcolato")
-    df_final = df_poc.copy()
-else:
-    df_final = df_poc.merge(df_st, on=ticker_col, how="left")
+# =========================
+# MERGE
+# =========================
+df_final = df_poc.merge(df_st, on=ticker_col, how="left")
 
 # =========================
 # EXPORT
