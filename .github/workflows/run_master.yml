@@ -4,7 +4,7 @@ on:
   schedule:
     # Ogni venerdì alle 18:00 UTC (≈ 19:00 Italia inverno / 20:00 estate)
     - cron: '0 18 * * 5'
-  workflow_dispatch:   # consente avvio manuale
+  workflow_dispatch:   # avvio manuale
 
 jobs:
   run-master:
@@ -37,7 +37,7 @@ jobs:
         run: |
           python master.py
 
-      # 5️⃣ Upload outputs come artifacts
+      # 5️⃣ Upload output come artifacts (NO ZIP manuale, fa tutto GitHub)
       - name: Upload Output Artifacts
         uses: actions/upload-artifact@v4
         with:
