@@ -24,6 +24,8 @@ jobs:
       # 3️⃣ Installa dipendenze incl. TA-Lib
       - name: Install dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libta-lib0 libta-lib0-dev
           python -m pip install --upgrade pip
           pip install \
             pandas \
@@ -31,7 +33,7 @@ jobs:
             openpyxl \
             yfinance \
             lxml \
-            TA-Lib==0.4.24   # wheel precompilata per GitHub Actions
+            TA-Lib==0.4.24
 
       # 4️⃣ Esegui master.py
       - name: Run Master Script
