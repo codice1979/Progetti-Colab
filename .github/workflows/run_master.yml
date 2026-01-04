@@ -21,11 +21,9 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 3️⃣ Installa dipendenze incl. TA-Lib
+      # 3️⃣ Installa dipendenze
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libta-lib0 libta-lib0-dev
           python -m pip install --upgrade pip
           pip install \
             pandas \
@@ -33,7 +31,7 @@ jobs:
             openpyxl \
             yfinance \
             lxml \
-            TA-Lib==0.4.24
+            TA-Lib==0.4.24 --find-links https://www.lfd.uci.edu/~gohlke/pythonlibs/
 
       # 4️⃣ Esegui master.py
       - name: Run Master Script
