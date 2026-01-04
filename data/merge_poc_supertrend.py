@@ -55,12 +55,19 @@ print(f"✅ Colonna ticker usata: {ticker_col}")
 # SUPERTREND (STILE TradingView)
 # =========================
 def supertrend_series(df, period=10, multiplier=3):
+    """
+    Ritorna array numpy con il valore del SuperTrend
+    """
+    if df.empty or len(df) < period:
+        return np.array([np.nan])
+
     df = df.copy()
+    # Normalizza colonne (yfinance MultiIndex)
     df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
 
-    high = df["High"].values
-    low = df["Low"].values
-    close = df["Close"].values
+    high = df["High"].astype(float).values
+    low = df["Low"].astype(float).values
+    close = df["Close"].astype(float).values
 
     hl2 = (high + low) / 2
     atr = pd.Series(high - low).rolling(period).mean().values
@@ -72,6 +79,8 @@ def supertrend_series(df, period=10, multiplier=3):
     direction = 1
 
     for i in range(period, len(close)):
+        if np.isnan(upperband[i - 1]) or np.isnan(lowerband[i - 1]):
+            continue
         if close[i] > upperband[i - 1]:
             direction = 1
         elif close[i] < lowerband[i - 1]:
@@ -82,6 +91,9 @@ def supertrend_series(df, period=10, multiplier=3):
     return st
 
 def st_distance_pct(df):
+    """
+    Calcola il delta % tra prezzo di chiusura e ST dell'ultimo punto
+    """
     if df.empty or len(df) < 20:
         return np.nan
 
@@ -89,8 +101,9 @@ def st_distance_pct(df):
     if np.isnan(st[-1]):
         return np.nan
 
-    close = df["Close"].iloc[-1]
-    return round((close - st[-1]) / st[-1] * 100, 1)
+    close_val = float(df["Close"].iloc[-1])
+    st_val = float(st[-1])
+    return round((close_val - st_val) / st_val * 100, 1)
 
 # =========================
 # CALCOLO ST MULTI-TIMEFRAME
