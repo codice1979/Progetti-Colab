@@ -4,7 +4,6 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 import numpy as np
-import talib as ta
 
 # =========================
 # PATH LOCALI
@@ -53,8 +52,11 @@ if ticker_col is None:
 print(f"✅ Colonna ticker usata: {ticker_col}")
 
 # =========================
-# FUNZIONI SUPERTREND (TA-Lib + Delta %)
+# FUNZIONI SUPERTREND (NO TA-LIB)
 # =========================
+ATR_PERIOD = 10
+MULTIPLIER = 3.0
+
 def clean_df(df):
     """Pulizia dataframe yfinance"""
     if df.empty:
@@ -67,59 +69,71 @@ def clean_df(df):
     df = df.dropna(subset=['High','Low','Close'])
     return df
 
-def calculate_supertrend(high, low, close, atr_period=10, multiplier=3.0):
-    """Calcola ultimo valore SuperTrend in stile TradingView usando TA-Lib"""
+def calculate_atr(high, low, close, period=ATR_PERIOD):
+    """ATR manuale in stile TradingView"""
     high = np.asarray(high, dtype=float)
     low = np.asarray(low, dtype=float)
     close = np.asarray(close, dtype=float)
 
-    if len(close) < atr_period:
-        return np.nan
+    tr_list = np.maximum(high[1:] - low[1:], 
+                         np.maximum(np.abs(high[1:] - close[:-1]), 
+                                    np.abs(low[1:] - close[:-1])))
+    atr = np.zeros_like(close)
+    atr[:period] = np.nan
+    atr[period] = np.mean(tr_list[:period])
+    for i in range(period+1, len(close)):
+        atr[i] = (atr[i-1]*(period-1) + tr_list[i-1])/period
+    return atr
 
-    atr = ta.ATR(high, low, close, timeperiod=atr_period)
-    upperband = (high + low)/2 + multiplier*atr
-    lowerband = (high + low)/2 - multiplier*atr
+def supertrend_tv(high, low, close, period=ATR_PERIOD, multiplier=MULTIPLIER):
+    """Calcolo SuperTrend in stile TradingView"""
+    high = np.asarray(high, dtype=float)
+    low = np.asarray(low, dtype=float)
+    close = np.asarray(close, dtype=float)
 
-    supertrend = np.full_like(close, np.nan)
-    direction = np.full_like(close, np.nan)
+    if len(close) < period:
+        return np.full(len(close), np.nan)
 
-    first_valid_idx = np.where(~np.isnan(atr))[0][0]
-    supertrend[first_valid_idx] = upperband[first_valid_idx]
-    direction[first_valid_idx] = 1
+    atr = calculate_atr(high, low, close, period)
+    hl2 = (high + low) / 2
+    upperband = hl2 + multiplier*atr
+    lowerband = hl2 - multiplier*atr
 
-    for i in range(first_valid_idx+1, len(close)):
-        prev_st = supertrend[i-1]
+    st = np.full(len(close), np.nan)
+    direction = np.full(len(close), 1)
+
+    first_valid = np.where(~np.isnan(atr))[0][0]
+    st[first_valid] = upperband[first_valid]
+
+    for i in range(first_valid+1, len(close)):
+        prev_st = st[i-1]
         if close[i] > prev_st:
             direction[i] = 1
         else:
             direction[i] = -1
-        supertrend[i] = max(lowerband[i], prev_st) if direction[i]==1 else min(upperband[i], prev_st)
 
-    supertrend[:first_valid_idx] = supertrend[first_valid_idx]
-    return supertrend[-1]
+        st[i] = max(lowerband[i], prev_st) if direction[i]==1 else min(upperband[i], prev_st)
 
-def st_distance_pct(df):
-    """Calcola delta % tra prezzo di chiusura e ST ultimo punto"""
+    st[:first_valid] = st[first_valid]
+    return st
+
+def compute_st_and_delta(df):
+    """Restituisce ST ultimo valore, Close ultimo, Delta %"""
     df = clean_df(df)
-    if df.empty or len(df) < 20:
-        return np.nan
-    st_last = calculate_supertrend(df['High'], df['Low'], df['Close'])
-    if np.isnan(st_last):
-        return np.nan
+    if df.empty or len(df) < ATR_PERIOD:
+        return np.nan, np.nan, np.nan
+    st = supertrend_tv(df['High'].values, df['Low'].values, df['Close'].values)
+    st_last = float(st[-1])
     close_last = float(df['Close'].iloc[-1])
-    return round((close_last - st_last)/st_last * 100, 1)
+    delta_pct = ((close_last - st_last)/st_last)*100 if st_last != 0 else np.nan
+    return st_last, close_last, delta_pct
 
 # =========================
 # CALCOLO ST MULTI-TIMEFRAME
 # =========================
 rows = []
 
-tickers = (
-    df_poc[ticker_col]
-    .dropna()
-    .astype(str)
-    .unique()
-)
+tickers = df_poc[ticker_col].dropna().astype(str).unique()
 
 for ticker in tickers:
     try:
@@ -128,12 +142,17 @@ for ticker in tickers:
         df_w = yf.download(ticker, period="1y", interval="1wk", progress=False, auto_adjust=True)
         df_m = yf.download(ticker, period="2y", interval="1mo", progress=False, auto_adjust=True)
 
+        st_4h, close_4h, delta_4h = compute_st_and_delta(df_4h)
+        st_d, close_d, delta_d = compute_st_and_delta(df_d)
+        st_w, close_w, delta_w = compute_st_and_delta(df_w)
+        st_m, close_m, delta_m = compute_st_and_delta(df_m)
+
         rows.append({
             ticker_col: ticker,
-            "ST_4H_Delta%": st_distance_pct(df_4h),
-            "ST_Daily_Delta%": st_distance_pct(df_d),
-            "ST_Weekly_Delta%": st_distance_pct(df_w),
-            "ST_Monthly_Delta%": st_distance_pct(df_m),
+            "ST_4H_Delta%": round(delta_4h,2),
+            "ST_Daily_Delta%": round(delta_d,2),
+            "ST_Weekly_Delta%": round(delta_w,2),
+            "ST_Monthly_Delta%": round(delta_m,2),
         })
 
     except Exception as e:
