@@ -4,6 +4,7 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 import numpy as np
+import talib as ta
 
 # =========================
 # PATH LOCALI
@@ -52,58 +53,61 @@ if ticker_col is None:
 print(f"✅ Colonna ticker usata: {ticker_col}")
 
 # =========================
-# SUPERTREND (STILE TradingView)
+# FUNZIONI SUPERTREND (TA-Lib + Delta %)
 # =========================
-def supertrend_series(df, period=10, multiplier=3):
-    """
-    Ritorna array numpy con il valore del SuperTrend
-    """
-    if df.empty or len(df) < period:
-        return np.array([np.nan])
+def clean_df(df):
+    """Pulizia dataframe yfinance"""
+    if df.empty:
+        return df
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [c[0] for c in df.columns]
+    for col in ['High','Low','Close']:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    df = df.dropna(subset=['High','Low','Close'])
+    return df
 
-    df = df.copy()
-    # Normalizza colonne (yfinance MultiIndex)
-    df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
+def calculate_supertrend(high, low, close, atr_period=10, multiplier=3.0):
+    """Calcola ultimo valore SuperTrend in stile TradingView usando TA-Lib"""
+    high = np.asarray(high, dtype=float)
+    low = np.asarray(low, dtype=float)
+    close = np.asarray(close, dtype=float)
 
-    high = df["High"].astype(float).values
-    low = df["Low"].astype(float).values
-    close = df["Close"].astype(float).values
+    if len(close) < atr_period:
+        return np.nan
 
-    hl2 = (high + low) / 2
-    atr = pd.Series(high - low).rolling(period).mean().values
+    atr = ta.ATR(high, low, close, timeperiod=atr_period)
+    upperband = (high + low)/2 + multiplier*atr
+    lowerband = (high + low)/2 - multiplier*atr
 
-    upperband = hl2 + multiplier * atr
-    lowerband = hl2 - multiplier * atr
+    supertrend = np.full_like(close, np.nan)
+    direction = np.full_like(close, np.nan)
 
-    st = np.full(len(close), np.nan)
-    direction = 1
+    first_valid_idx = np.where(~np.isnan(atr))[0][0]
+    supertrend[first_valid_idx] = upperband[first_valid_idx]
+    direction[first_valid_idx] = 1
 
-    for i in range(period, len(close)):
-        if np.isnan(upperband[i - 1]) or np.isnan(lowerband[i - 1]):
-            continue
-        if close[i] > upperband[i - 1]:
-            direction = 1
-        elif close[i] < lowerband[i - 1]:
-            direction = -1
+    for i in range(first_valid_idx+1, len(close)):
+        prev_st = supertrend[i-1]
+        if close[i] > prev_st:
+            direction[i] = 1
+        else:
+            direction[i] = -1
+        supertrend[i] = max(lowerband[i], prev_st) if direction[i]==1 else min(upperband[i], prev_st)
 
-        st[i] = lowerband[i] if direction == 1 else upperband[i]
-
-    return st
+    supertrend[:first_valid_idx] = supertrend[first_valid_idx]
+    return supertrend[-1]
 
 def st_distance_pct(df):
-    """
-    Calcola il delta % tra prezzo di chiusura e ST dell'ultimo punto
-    """
+    """Calcola delta % tra prezzo di chiusura e ST ultimo punto"""
+    df = clean_df(df)
     if df.empty or len(df) < 20:
         return np.nan
-
-    st = supertrend_series(df)
-    if np.isnan(st[-1]):
+    st_last = calculate_supertrend(df['High'], df['Low'], df['Close'])
+    if np.isnan(st_last):
         return np.nan
-
-    close_val = float(df["Close"].iloc[-1])
-    st_val = float(st[-1])
-    return round((close_val - st_val) / st_val * 100, 1)
+    close_last = float(df['Close'].iloc[-1])
+    return round((close_last - st_last)/st_last * 100, 1)
 
 # =========================
 # CALCOLO ST MULTI-TIMEFRAME
@@ -126,10 +130,10 @@ for ticker in tickers:
 
         rows.append({
             ticker_col: ticker,
-            "ST_4H": st_distance_pct(df_4h),
-            "ST_Daily": st_distance_pct(df_d),
-            "ST_Weekly": st_distance_pct(df_w),
-            "ST_Monthly": st_distance_pct(df_m),
+            "ST_4H_Delta%": st_distance_pct(df_4h),
+            "ST_Daily_Delta%": st_distance_pct(df_d),
+            "ST_Weekly_Delta%": st_distance_pct(df_w),
+            "ST_Monthly_Delta%": st_distance_pct(df_m),
         })
 
     except Exception as e:
