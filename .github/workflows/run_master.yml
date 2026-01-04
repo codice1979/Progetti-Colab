@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 3️⃣ Installa dipendenze
+      # 3️⃣ Installa dipendenze compatibili senza TA-Lib
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -30,11 +30,10 @@ jobs:
             numpy \
             openpyxl \
             yfinance \
-            lxml \
-            TA-Lib==0.4.24 --find-links https://www.lfd.uci.edu/~gohlke/pythonlibs/
+            lxml
 
-      # 4️⃣ Esegui master.py
-      - name: Run Master Script
+      # 4️⃣ Esegui master.py con la nuova logica SuperTrend
+      - name: Run Master Script (SuperTrend senza TA-Lib)
         run: |
           python master.py --poc_period 20y --soglia_poc 15
 
