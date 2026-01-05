@@ -1,26 +1,55 @@
-name: Key Reversal Analysis
+name: Run Key Reversal Weekly
 
 on:
-  workflow_dispatch:  # permette avvio manuale
+  schedule:
+    # Dal lunedì al venerdì alle 23:55 UTC (≈ 00:55 Italia)
+    - cron: '55 23 * * 1-5'
+  workflow_dispatch:  # Avvio manuale
 
 jobs:
-  run-key-reversal:
+  key-reversal:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      # 1️⃣ Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2️⃣ Setup Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
+      # 3️⃣ Installa tutte le dipendenze necessarie
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas yfinance ta requests beautifulsoup4
+          pip install \
+            pandas \
+            numpy \
+            yfinance \
+            lxml \
+            openpyxl \
+            requests \
+            beautifulsoup4 \
+            ta
 
+      # 4️⃣ Esegui Key Reversal
       - name: Run Key Reversal Script
         run: |
           python data/key_reversal.py
+
+      # 5️⃣ (Opzionale) crea ZIP con output
+      - name: Zip output files
+        run: |
+          mkdir -p data/output_zip
+          cd data/output
+          zip -r ../output_zip/key_reversal_output.zip .
+
+      # 6️⃣ Upload ZIP come artifact (da scaricare da Actions)
+      - name: Upload Key Reversal Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: key-reversal-output
+          path: data/output_zip/key_reversal_output.zip
