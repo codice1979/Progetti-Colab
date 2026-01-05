@@ -1,9 +1,9 @@
-name: Run POC + SuperTrend Weekly
+name: Run POC + SuperTrend Daily
 
 on:
   schedule:
-    # Ogni venerdì alle 18:00 UTC (≈ 19:00 Italia inverno / 20:00 estate)
-    - cron: '0 18 * * 5'
+    # Ogni giorno dal lunedì al venerdì alle 23:55 UTC
+    - cron: '55 23 * * 1-5'
   workflow_dispatch:   # avvio manuale
 
 jobs:
@@ -43,3 +43,39 @@ jobs:
         with:
           name: poc-supertrend-output
           path: data/output/
+
+      # 6️⃣ Genera HTML con link cliccabile all'ultimo artifact
+      - name: Generate Latest Artifact HTML
+        run: |
+          ARTIFACT_NAME="poc-supertrend-output"
+          
+          # Recupera l'ID dell'ultimo artifact tramite GitHub API
+          ARTIFACT_ID=$(gh api repos/${{ github.repository }}/actions/artifacts --jq ".artifacts | map(select(.name==\"$ARTIFACT_NAME\")) | sort_by(.created_at) | last(.id)")
+          
+          if [ -z "$ARTIFACT_ID" ]; then
+            echo "❌ Artifact non trovato"
+            exit 1
+          fi
+          
+          # URL diretto al ZIP dell'ultimo artifact
+          ARTIFACT_URL="https://github.com/${{ github.repository }}/actions/artifacts/${ARTIFACT_ID}/zip"
+          
+          # Genera file HTML con link cliccabile
+          HTML_FILE="latest_artifact.html"
+          echo "<!DOCTYPE html>
+<html>
+<head><title>Latest Artifact</title></head>
+<body>
+<h3>Ultimo ZIP del workflow:</h3>
+<a href=\"$ARTIFACT_URL\" target=\"_blank\">Scarica ZIP</a>
+</body>
+</html>" > $HTML_FILE
+          
+          echo "✅ HTML generato: $HTML_FILE"
+
+      # 7️⃣ Upload HTML come artifact separato
+      - name: Upload HTML Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: latest-artifact-link
+          path: latest_artifact.html
