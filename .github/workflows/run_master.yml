@@ -1,8 +1,8 @@
-name: Run POC + SuperTrend Daily
+name: Run POC + SuperTrend Weekly
 
 on:
   schedule:
-    # Ogni giorno dal lunedì al venerdì alle 23:55 UTC
+    # Ogni lunedì-venerdì alle 23:55 UTC
     - cron: '55 23 * * 1-5'
   workflow_dispatch:   # avvio manuale
 
@@ -46,11 +46,12 @@ jobs:
 
       # 6️⃣ Genera HTML con link cliccabile all'ultimo artifact
       - name: Generate Latest Artifact HTML
+        shell: bash
         run: |
           ARTIFACT_NAME="poc-supertrend-output"
           
-          # Recupera l'ID dell'ultimo artifact tramite GitHub API
-          ARTIFACT_ID=$(gh api repos/${{ github.repository }}/actions/artifacts --jq ".artifacts | map(select(.name==\"$ARTIFACT_NAME\")) | sort_by(.created_at) | last(.id)")
+          # Recupera l'ID dell'ultimo artifact tramite GitHub CLI
+          ARTIFACT_ID=$(gh api repos/${GITHUB_REPOSITORY}/actions/artifacts --jq ".artifacts | map(select(.name==\"$ARTIFACT_NAME\")) | sort_by(.created_at) | last(.id)")
           
           if [ -z "$ARTIFACT_ID" ]; then
             echo "❌ Artifact non trovato"
@@ -58,24 +59,18 @@ jobs:
           fi
           
           # URL diretto al ZIP dell'ultimo artifact
-          ARTIFACT_URL="https://github.com/${{ github.repository }}/actions/artifacts/${ARTIFACT_ID}/zip"
+          ARTIFACT_URL="https://github.com/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip"
           
           # Genera file HTML con link cliccabile
-          HTML_FILE="latest_artifact.html"
-          echo "<!DOCTYPE html>
+          cat <<EOF > latest_artifact.html
+<!DOCTYPE html>
 <html>
 <head><title>Latest Artifact</title></head>
 <body>
 <h3>Ultimo ZIP del workflow:</h3>
-<a href=\"$ARTIFACT_URL\" target=\"_blank\">Scarica ZIP</a>
+<a href="${ARTIFACT_URL}" target="_blank">Scarica ZIP</a>
 </body>
-</html>" > $HTML_FILE
-          
-          echo "✅ HTML generato: $HTML_FILE"
+</html>
+EOF
 
-      # 7️⃣ Upload HTML come artifact separato
-      - name: Upload HTML Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: latest-artifact-link
-          path: latest_artifact.html
+          echo "✅ HTML generato: latest_artifact.html"
