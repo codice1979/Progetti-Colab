@@ -1,0 +1,47 @@
+import os
+from pathlib import Path
+from datetime import datetime
+
+# --------------------------
+# Cartella output dove master.py salva i file
+# --------------------------
+OUTPUT_DIR = Path(__file__).parent / "output"
+HTML_FILE = OUTPUT_DIR / "latest_artifact.html"
+
+# --------------------------
+# Trova l'ultimo file ZIP creato
+# --------------------------
+zip_files = sorted(
+    [f for f in OUTPUT_DIR.glob("*.xlsx")],
+    key=lambda f: f.stat().st_mtime,
+    reverse=True
+)
+
+if not zip_files:
+    print("❌ Nessun file trovato in output/")
+    exit(1)
+
+latest_file = zip_files[0]
+file_name = latest_file.name
+file_path = latest_file.resolve()
+
+# --------------------------
+# Genera HTML
+# --------------------------
+html_content = f"""<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Ultimo Artifact</title>
+</head>
+<body>
+    <h2>Ultimo file generato:</h2>
+    <p><a href="file://{file_path}" target="_blank">{file_name}</a></p>
+</body>
+</html>
+"""
+
+with open(HTML_FILE, "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+print(f"✅ File HTML generato: {HTML_FILE}")
