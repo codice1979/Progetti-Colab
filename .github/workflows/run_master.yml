@@ -32,8 +32,8 @@ jobs:
             yfinance \
             lxml
 
-      # 4️⃣ Esegui master.py (CORRETTO)
-      - name: Run Master Script (SuperTrend senza TA-Lib)
+      # 4️⃣ Esegui master.py (SuperTrend senza TA-Lib)
+      - name: Run Master Script
         run: |
           python master.py
 
