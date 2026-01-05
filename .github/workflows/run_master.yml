@@ -2,7 +2,7 @@ name: Run POC + SuperTrend Weekly
 
 on:
   schedule:
-    # Ogni lunedì-venerdì alle 23:55 UTC
+    # Dal lunedì al venerdì alle 23:55 UTC (≈ 00:55 Italia)
     - cron: '55 23 * * 1-5'
   workflow_dispatch:   # avvio manuale
 
@@ -35,42 +35,16 @@ jobs:
       # 4️⃣ Esegui master.py con la nuova logica SuperTrend
       - name: Run Master Script (SuperTrend senza TA-Lib)
         run: |
-          python master.py --poc_period 20y --soglia_poc 15
+          python data/master.py --poc_period 20y --soglia_poc 15
 
-      # 5️⃣ Upload output come artifacts
+      # 5️⃣ Genera file HTML con link all'ultimo artifact
+      - name: Generate HTML for latest artifact
+        run: |
+          python data/generate_artifact_link.py
+
+      # 6️⃣ Upload output come artifacts
       - name: Upload Output Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: poc-supertrend-output
           path: data/output/
-
-      # 6️⃣ Genera HTML con link cliccabile all'ultimo artifact
-      - name: Generate Latest Artifact HTML
-        shell: bash
-        run: |
-          ARTIFACT_NAME="poc-supertrend-output"
-          
-          # Recupera l'ID dell'ultimo artifact tramite GitHub CLI
-          ARTIFACT_ID=$(gh api repos/${GITHUB_REPOSITORY}/actions/artifacts --jq ".artifacts | map(select(.name==\"$ARTIFACT_NAME\")) | sort_by(.created_at) | last(.id)")
-          
-          if [ -z "$ARTIFACT_ID" ]; then
-            echo "❌ Artifact non trovato"
-            exit 1
-          fi
-          
-          # URL diretto al ZIP dell'ultimo artifact
-          ARTIFACT_URL="https://github.com/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip"
-          
-          # Genera file HTML con link cliccabile
-          cat <<EOF > latest_artifact.html
-<!DOCTYPE html>
-<html>
-<head><title>Latest Artifact</title></head>
-<body>
-<h3>Ultimo ZIP del workflow:</h3>
-<a href="${ARTIFACT_URL}" target="_blank">Scarica ZIP</a>
-</body>
-</html>
-EOF
-
-          echo "✅ HTML generato: latest_artifact.html"
