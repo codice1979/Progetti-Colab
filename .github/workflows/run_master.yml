@@ -32,10 +32,10 @@ jobs:
             yfinance \
             lxml
 
-      # 4️⃣ Esegui master.py con la nuova logica SuperTrend
+      # 4️⃣ Esegui master.py (CORRETTO)
       - name: Run Master Script (SuperTrend senza TA-Lib)
         run: |
-          python data/master.py --poc_period 20y --soglia_poc 15
+          python master.py
 
       # 5️⃣ Genera file HTML con link all'ultimo artifact
       - name: Generate HTML for latest artifact
