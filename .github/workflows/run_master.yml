@@ -4,7 +4,7 @@ on:
   schedule:
     # Dal lunedì al venerdì alle 23:55 UTC (≈ 00:55 Italia)
     - cron: '55 23 * * 1-5'
-  workflow_dispatch:
+  workflow_dispatch:   # Avvio manuale
 
 jobs:
   run-master:
@@ -32,23 +32,22 @@ jobs:
             yfinance \
             lxml
 
-      # 4️⃣ Esegui master.py (SuperTrend senza TA-Lib)
-      - name: Run Master Script
+      # 4️⃣ Esegui master.py
+      - name: Run Master Script (SuperTrend senza TA-Lib)
         run: |
           python master.py
 
-      # 5️⃣ Crea ZIP con tutti gli output
+      # 5️⃣ Crea ZIP con tutti i file generati in data/output
       - name: Zip output files
         run: |
           cd data/output
           zip -r ../../poc-supertrend.zip .
 
-      # 6️⃣ Pubblica ZIP come GitHub Release (latest)
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+      # 6️⃣ Upload ZIP e tutti i file come artifacts
+      - name: Upload Output Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: latest
-          name: Latest POC SuperTrend
-          files: poc-supertrend.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: poc-supertrend-output
+          path: |
+            data/output
+            poc-supertrend.zip
