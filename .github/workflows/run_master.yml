@@ -4,7 +4,7 @@ on:
   schedule:
     # Dal lunedì al venerdì alle 23:55 UTC (≈ 00:55 Italia)
     - cron: '55 23 * * 1-5'
-  workflow_dispatch:   # avvio manuale
+  workflow_dispatch:
 
 jobs:
   run-master:
@@ -37,14 +37,18 @@ jobs:
         run: |
           python master.py
 
-      # 5️⃣ Genera file HTML con link all'ultimo artifact
-      - name: Generate HTML for latest artifact
+      # 5️⃣ Crea ZIP con tutti gli output
+      - name: Zip output files
         run: |
-          python data/generate_artifact_link.py
+          cd data/output
+          zip -r ../../poc-supertrend.zip .
 
-      # 6️⃣ Upload output come artifacts
-      - name: Upload Output Artifacts
-        uses: actions/upload-artifact@v4
+      # 6️⃣ Pubblica ZIP come GitHub Release (latest)
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: poc-supertrend-output
-          path: data/output/
+          tag_name: latest
+          name: Latest POC SuperTrend
+          files: poc-supertrend.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
