@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 3️⃣ Installa dipendenze compatibili senza TA-Lib
+      # 3️⃣ Installa dipendenze
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -30,20 +30,32 @@ jobs:
             numpy \
             openpyxl \
             yfinance \
-            lxml
+            lxml \
+            ta \
+            beautifulsoup4
 
-      # 4️⃣ Esegui master.py
+      # 4️⃣ Esegui SuperTrend / POC
       - name: Run Master Script (SuperTrend senza TA-Lib)
         run: |
           python master.py
 
-      # 5️⃣ Crea ZIP con tutti i file generati in data/output
+      # 5️⃣ Esegui Key Reversal
+      - name: Run Key Reversal Script
+        run: |
+          python data/key_reversal.py
+
+      # 6️⃣ Esegui RSI Divergence
+      - name: Run RSI Divergence Script
+        run: |
+          python data/rsi_divergence.py
+
+      # 7️⃣ Crea ZIP con TUTTI i file in data/output
       - name: Zip output files
         run: |
           cd data/output
           zip -r ../../poc-supertrend.zip .
 
-      # 6️⃣ Upload ZIP e tutti i file come artifacts
+      # 8️⃣ Upload ZIP + output come artifacts
       - name: Upload Output Artifacts
         uses: actions/upload-artifact@v4
         with:
