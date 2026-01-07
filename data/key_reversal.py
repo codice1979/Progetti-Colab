@@ -2,19 +2,19 @@
 # KEY REVERSAL WEEKLY / GITHUB ACTIONS
 # --------------------------
 
-# !pip install ta  # Rimuovi "!" in Actions, installa via workflow
 import yfinance as yf
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import ta
-
-# === Importa funzione get_all_tickers da my_tickers.py ===
 import sys
 import os
 
-# Assumiamo che my_tickers.py sia nella stessa cartella dello script
+# ✅ DEFINIZIONE WEEK NUMBER (UNICA AGGIUNTA)
+week_number = datetime.utcnow().isocalendar().week
+
+# === Importa funzione get_all_tickers da my_tickers.py ===
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
@@ -63,13 +63,26 @@ def analyze_key_reversal(tickers):
                 df.columns = [col.split('.')[-1] for col in df.columns]
 
             df.index = pd.to_datetime(df.index)
-            df["RSI"] = ta.momentum.RSIIndicator(close=df["Close"], window=rsi_period).rsi()
+            df["RSI"] = ta.momentum.RSIIndicator(
+                close=df["Close"],
+                window=rsi_period
+            ).rsi()
+
             df["Close_1"] = df["Close"].shift(1)
             df["Low_1n"] = df["Low"].shift(1).rolling(lookback).min()
             df["High_1n"] = df["High"].shift(1).rolling(lookback).max()
 
-            df["KR_Up"] = (df["Low"] < df["Low_1n"]) & (df["Close"] > df["Close_1"]) & (df["RSI"] < 30)
-            df["KR_Down"] = (df["High"] > df["High_1n"]) & (df["Close"] < df["Close_1"]) & (df["RSI"] > 70)
+            df["KR_Up"] = (
+                (df["Low"] < df["Low_1n"]) &
+                (df["Close"] > df["Close_1"]) &
+                (df["RSI"] < 30)
+            )
+
+            df["KR_Down"] = (
+                (df["High"] > df["High_1n"]) &
+                (df["Close"] < df["Close_1"]) &
+                (df["RSI"] > 70)
+            )
 
             signals = df[(df["KR_Up"]) | (df["KR_Down"])].copy()
             signals = signals[signals.index >= cutoff_date]
@@ -82,7 +95,6 @@ def analyze_key_reversal(tickers):
                 })
 
         except Exception as e:
-            # stampa eventuali errori
             print(f"Errore su {ticker}: {e}")
 
     df_out = pd.DataFrame(results)
@@ -100,9 +112,14 @@ if __name__ == "__main__":
     all_tickers = get_all_tickers()
     df_results = analyze_key_reversal(all_tickers)
 
-    # Salva il risultato come XLSX nella cartella output
     OUTPUT_DIR = os.path.join(BASE_DIR, "output")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_file = os.path.join(OUTPUT_DIR, "key_reversal_signals_week_{week_number}.xlsx")
+
+    # ✅ UNICA MODIFICA: f-string + week_number
+    output_file = os.path.join(
+        OUTPUT_DIR,
+        f"key_reversal_signals_week_{week_number}.xlsx"
+    )
+
     df_results.to_excel(output_file, index=False)
     print(f"✅ File salvato: {output_file}")
