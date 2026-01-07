@@ -103,6 +103,6 @@ if __name__ == "__main__":
     # Salva il risultato come XLSX nella cartella output
     OUTPUT_DIR = os.path.join(BASE_DIR, "output")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_file = os.path.join(OUTPUT_DIR, "key_reversal_signals.xlsx")
+    output_file = os.path.join(OUTPUT_DIR, "key_reversal_signals_week_{week_number}.xlsx")
     df_results.to_excel(output_file, index=False)
     print(f"✅ File salvato: {output_file}")
