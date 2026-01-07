@@ -12,6 +12,9 @@ from datetime import datetime, timedelta
 import os
 import sys
 
+# ✅ DEFINIZIONE WEEK NUMBER (UNICA MODIFICA)
+week_number = datetime.utcnow().isocalendar().week
+
 # ✅ Helper per scalari da array
 def scalar(x):
     return float(np.asarray(x).item())
@@ -51,7 +54,13 @@ def fetch_weekly_data(ticker):
         print(f"❌ Errore: Ticker vuoto o non valido ('{ticker}').")
         return None
     try:
-        df = yf.download(ticker, period="1y", interval="1wk", auto_adjust=False, progress=False)
+        df = yf.download(
+            ticker,
+            period="1y",
+            interval="1wk",
+            auto_adjust=False,
+            progress=False
+        )
         if df.empty or "Close" not in df.columns:
             return None
         df["RSI"] = compute_rsi_rma(df["Close"])
@@ -78,7 +87,13 @@ def find_pivots(series, window=2):
     return pivots
 
 # ✅ Divergenze RSI
-def detect_divergence_with_values(df, mode="bullish", window=2, max_days=42, max_days_from_now=30):
+def detect_divergence_with_values(
+    df,
+    mode="bullish",
+    window=2,
+    max_days=42,
+    max_days_from_now=30
+):
     if df is None or len(df) < (2 * window + 1):
         return None
 
@@ -107,9 +122,18 @@ def detect_divergence_with_values(df, mode="bullish", window=2, max_days=42, max
         return None
 
     if mode == 'bullish' and (p2 < p1) and (r2 > r1) and (min(r1, r2) < 35):
-        return {"date1": d1, "date2": d2, "price1": p1, "price2": p2, "rsi1": r1, "rsi2": r2}
+        return {
+            "date1": d1, "date2": d2,
+            "price1": p1, "price2": p2,
+            "rsi1": r1, "rsi2": r2
+        }
+
     if mode == 'bearish' and (p2 > p1) and (r2 < r1) and (max(r1, r2) > 65):
-        return {"date1": d1, "date2": d2, "price1": p1, "price2": p2, "rsi1": r1, "rsi2": r2}
+        return {
+            "date1": d1, "date2": d2,
+            "price1": p1, "price2": p2,
+            "rsi1": r1, "rsi2": r2
+        }
 
     return None
 
@@ -156,9 +180,11 @@ print("\n📊 Riepilogo divergenze recenti:")
 if results:
     df_res = pd.DataFrame(results)
     print(df_res.to_string(index=False))
-    # Salvataggio in data/output/
     os.makedirs("data/output", exist_ok=True)
-    output_file = os.path.join("data/output", f"rsi_divergences_week_{week_number}.xlsx")
+    output_file = os.path.join(
+        "data/output",
+        f"rsi_divergences_week_{week_number}.xlsx"
+    )
     df_res.to_excel(output_file, index=False)
     print(f"\n✅ File salvato: {output_file}")
 else:
