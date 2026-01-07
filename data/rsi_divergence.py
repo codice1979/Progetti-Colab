@@ -158,7 +158,7 @@ if results:
     print(df_res.to_string(index=False))
     # Salvataggio in data/output/
     os.makedirs("data/output", exist_ok=True)
-    output_file = os.path.join("data/output", f"rsi_divergences_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx")
+    output_file = os.path.join("data/output", f"rsi_divergences_week_{week_number}.xlsx")
     df_res.to_excel(output_file, index=False)
     print(f"\n✅ File salvato: {output_file}")
 else:
