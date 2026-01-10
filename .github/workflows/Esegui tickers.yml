@@ -1,0 +1,46 @@
+name: Export Tickers with Sectors
+
+on:
+  workflow_dispatch:
+  schedule:
+    # una volta al giorno alle 23:55 UTC (≈ 00:55 Italia)
+    - cron: '55 23 * * *'
+
+jobs:
+  export-tickers:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 3️⃣ Installa dipendenze
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            pandas \
+            yfinance \
+            openpyxl \
+            lxml \
+            beautifulsoup4
+
+      # 4️⃣ Esegui script Tickers with sectors
+      - name: Run Tickers with Sectors
+        run: |
+          python "data/Tickers with sectors.py"
+
+      # 5️⃣ Upload Excel come artifact (unzippato)
+      - name: Upload Excel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tickers-with-sectors
+          path: |
+            data/output/*.xlsx
