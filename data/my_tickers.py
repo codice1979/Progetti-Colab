@@ -13,7 +13,7 @@ def get_tickers_from_wiki(url, column_name, suffix="", manual_list=None):
         response.raise_for_status()
         tables = pd.read_html(response.text)
 
-        exceptions_no_suffix = ["MT.AS"]  # Lista eccezioni per cui non aggiungere suffisso
+        exceptions_no_suffix = ["MT.AS"]
 
         for table in tables:
             if column_name in table.columns:
@@ -26,10 +26,8 @@ def get_tickers_from_wiki(url, column_name, suffix="", manual_list=None):
                         tickers.append(ticker.replace(".", "-"))
                         continue
 
-                    # Normalizzazione generale
                     ticker = ticker.replace("-", ".")
 
-                    # Non aggiunge suffisso se il ticker Ã¨ in exceptions_no_suffix
                     if ticker not in exceptions_no_suffix:
                         known_suffixes = [".DE", ".PA", ".MI"]
                         if suffix and not any(ticker.endswith(s) for s in known_suffixes):
@@ -40,26 +38,22 @@ def get_tickers_from_wiki(url, column_name, suffix="", manual_list=None):
                 if tickers:
                     return tickers
 
-        # Se niente trovato, fallback manuale
         if manual_list:
             return manual_list
         return []
 
     except Exception as e:
-        print(f"â Errore caricamento da {url}: {e}")
+        print(f"❌ Errore caricamento da {url}: {e}")
         if manual_list:
-            print("â¡ Uso lista manuale di fallback")
+            print("➡️ Uso lista manuale di fallback")
             return manual_list
         return []
 
 def get_all_tickers(flat=True):
     """
-    Raccoglie ticker da piÃ¹ indici + lista manuale.
-    Se flat=True ritorna una lista unica (senza duplicati).
-    Se flat=False ritorna un dizionario con i ticker per indice.
+    Raccoglie ticker da più indici + lista manuale.
     """
 
-    # Liste manuali complete
     ftse_mib_manual = [
         "A2A.MI","AMP.MI","AZM.MI","BMED.MI","BMPS.MI","BAMI.MI","BPSO.MI","BPE.MI",
         "BC.MI","BZU.MI","CPR.MI","DIA.MI","ENEL.MI","ENI.MI","RACE.MI","FBK.MI",
@@ -78,38 +72,38 @@ def get_all_tickers(flat=True):
 
     all_tickers = {}
 
-    # S&P 500
-    sp500_url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    all_tickers["sp500"] = get_tickers_from_wiki(sp500_url, "Symbol")
+    all_tickers["sp500"] = get_tickers_from_wiki(
+        "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", "Symbol"
+    )
 
-    # Nasdaq-100
-    nasdaq_url = "https://en.wikipedia.org/wiki/NASDAQ-100"
-    all_tickers["nasdaq100"] = get_tickers_from_wiki(nasdaq_url, "Ticker")
+    all_tickers["nasdaq100"] = get_tickers_from_wiki(
+        "https://en.wikipedia.org/wiki/NASDAQ-100", "Ticker"
+    )
 
-    # DAX (Germania, .DE)
-    dax_url = "https://en.wikipedia.org/wiki/DAX"
-    all_tickers["dax"] = get_tickers_from_wiki(dax_url, "Ticker", suffix=".DE")
+    all_tickers["dax"] = get_tickers_from_wiki(
+        "https://en.wikipedia.org/wiki/DAX", "Ticker", suffix=".DE"
+    )
 
-    # FTSE MIB (Italia, .MI) con fallback manuale
-    ftse_url = "https://en.wikipedia.org/wiki/FTSE_MIB"
-    all_tickers["ftse_mib"] = get_tickers_from_wiki(ftse_url, "Ticker", suffix=".MI", manual_list=ftse_mib_manual)
+    all_tickers["ftse_mib"] = get_tickers_from_wiki(
+        "https://en.wikipedia.org/wiki/FTSE_MIB", "Ticker", suffix=".MI", manual_list=ftse_mib_manual
+    )
 
-    # CAC 40 (Francia, .PA) con fallback manuale
-    cac_url = "https://en.wikipedia.org/wiki/CAC_40"
-    all_tickers["cac40"] = get_tickers_from_wiki(cac_url, "Ticker", suffix=".PA", manual_list=cac40_manual)
+    all_tickers["cac40"] = get_tickers_from_wiki(
+        "https://en.wikipedia.org/wiki/CAC_40", "Ticker", suffix=".PA", manual_list=cac40_manual
+    )
 
-     all_tickers["extra"] = [
+    all_tickers["extra"] = [
         "^GSPC","^NDX","^GDAXI","GC=F","SI=F","CL=F","^VIX",
-        "EURUSD=X","BTC-USD","ETH-USD",”CRCL”,”QUBT”,”SMR”,”NOVO-B.CO”,”P911.DE”, “PUM.DE”,”ENPH”,”UPS”,”BABA”,”NIO”,”OKLO”
+        "EURUSD=X","BTC-USD","ETH-USD",
+        "CRCL","QUBT","SMR","NOVO-B.CO","P911.DE","PUM.DE",
+        "ENPH","UPS","BABA","NIO","OKLO"
     ]
 
-
     if flat:
-        flat_list = [t for sublist in all_tickers.values() for t in sublist]
-        flat_list = list(set(flat_list))
-        print("ð Totale ticker raccolti:", len(flat_list))
+        flat_list = sorted(set(t for sub in all_tickers.values() for t in sub))
+        print("🔎 Totale ticker raccolti:", len(flat_list))
         return flat_list
     else:
         for k, v in all_tickers.items():
-            print(f"â {k}: {len(v)}")
+            print(f"✅ {k}: {len(v)}")
         return all_tickers
