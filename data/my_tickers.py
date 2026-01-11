@@ -98,11 +98,11 @@ def get_all_tickers(flat=True):
     cac_url = "https://en.wikipedia.org/wiki/CAC_40"
     all_tickers["cac40"] = get_tickers_from_wiki(cac_url, "Ticker", suffix=".PA", manual_list=cac40_manual)
 
-    # Extra strumenti
-    all_tickers["extra"] = [
+     all_tickers["extra"] = [
         "^GSPC","^NDX","^GDAXI","GC=F","SI=F","CL=F","^VIX",
-        "EURUSD=X","BTC-USD","ETH-USD"
+        "EURUSD=X","BTC-USD","ETH-USD",”CRCL”,”QUBT”,”SMR”,”NOVO-B.CO”,”P911.DE”, “PUM.DE”,”ENPH”,”UPS”,”BABA”,”NIO”,”OKLO”
     ]
+
 
     if flat:
         flat_list = [t for sublist in all_tickers.values() for t in sublist]
