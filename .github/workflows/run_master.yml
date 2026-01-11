@@ -4,7 +4,7 @@ on:
   schedule:
     # Dal lunedì al venerdì alle 23:55 UTC (≈ 00:55 Italia)
     - cron: '55 23 * * 1-5'
-  workflow_dispatch:   # Avvio manuale
+  workflow_dispatch:
 
 jobs:
   run-master:
@@ -34,28 +34,33 @@ jobs:
             ta \
             beautifulsoup4
 
-      # 4️⃣ Esegui SuperTrend / POC
+      # 4️⃣ SuperTrend / POC
       - name: Run Master Script (SuperTrend senza TA-Lib)
         run: |
           python master.py
 
-      # 5️⃣ Esegui Key Reversal
+      # 5️⃣ Key Reversal
       - name: Run Key Reversal Script
         run: |
           python data/key_reversal.py
 
-      # 6️⃣ Esegui RSI Divergence
+      # 6️⃣ RSI Divergence
       - name: Run RSI Divergence Script
         run: |
           python data/rsi_divergence.py
 
-      # 7️⃣ Crea ZIP con TUTTI i file in data/output
+      # 7️⃣ Tickers + Name + Sector + Index
+      - name: Run Tickers With Sectors Script
+        run: |
+          python "data/Tickers with sectors.py"
+
+      # 8️⃣ ZIP di TUTTI i file in data/output (unzippati dentro)
       - name: Zip output files
         run: |
           cd data/output
           zip -r ../../poc-supertrend.zip .
 
-      # 8️⃣ Upload ZIP + output come artifacts
+      # 9️⃣ Upload artifacts (ZIP + file singoli)
       - name: Upload Output Artifacts
         uses: actions/upload-artifact@v4
         with:
