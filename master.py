@@ -23,7 +23,7 @@ from my_tickers import get_all_tickers
 configs = [
     {"poc_period": 20, "soglia_poc": 15},
     {"poc_period": 5,  "soglia_poc": 5},
-    {"poc_period": 2,  "soglia_poc": 3}   # 👈 NUOVA CONFIG
+    {"poc_period": 2,  "soglia_poc": 3}
 ]
 
 week_number = datetime.now().isocalendar()[1]
@@ -43,7 +43,7 @@ for cfg in configs:
         f"POC_p{poc_period_file}_s{soglia_poc}_week_{week_number}.xlsx"
     )
 
-    # 1️⃣ POC
+    # 1️⃣ POC (serve comunque per il merge)
     ret_poc = subprocess.run(
         ["python", POC_SCRIPT, "--poc_period", poc_period_cli, "--soglia_poc", soglia_poc]
     )
@@ -52,7 +52,7 @@ for cfg in configs:
         print("❌ Errore POC")
         continue
 
-    print(f"✅ File salvato localmente: {poc_file}")
+    print(f"✅ POC calcolato")
 
     # 2️⃣ MERGE + SUPERTREND
     ret_st = subprocess.run(
@@ -68,4 +68,9 @@ for cfg in configs:
         f"POC_ST_p{poc_period_file}_s{soglia_poc}_week_{week_number}.xlsx"
     )
 
-    print(f"✅ File salvato localmente: {st_file}")
+    print(f"✅ File salvato: {st_file}")
+
+    # 🧹 ELIMINA FILE POC INTERMEDIO
+    if os.path.exists(poc_file):
+        os.remove(poc_file)
+        print(f"🗑️ File POC rimosso: {os.path.basename(poc_file)}")
