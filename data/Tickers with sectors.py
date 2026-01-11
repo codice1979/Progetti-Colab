@@ -31,7 +31,7 @@ all_tickers = sorted(ticker_to_index.keys())
 print(f"🔍 Trovati {len(all_tickers)} ticker unici")
 
 # =========================
-# Recupero name e sector
+# Recupero name, sector, market cap
 # =========================
 rows = []
 
@@ -42,13 +42,17 @@ for ticker in all_tickers:
         name = info.get("longName") or info.get("shortName") or ""
         sector = info.get("sector") or ""
 
+        market_cap = info.get("marketCap")
+        market_cap_b = round(market_cap / 1_000_000_000, 3) if market_cap else None
+
         index_str = ", ".join(sorted(ticker_to_index[ticker]))
 
         rows.append({
             "ticker": ticker,
             "name": name,
             "sector": sector,
-            "index": index_str
+            "index": index_str,
+            "market_cap_B": market_cap_b
         })
 
         print(f"✅ {ticker} → {index_str}")
@@ -59,7 +63,8 @@ for ticker in all_tickers:
             "ticker": ticker,
             "name": "",
             "sector": "",
-            "index": ", ".join(sorted(ticker_to_index[ticker]))
+            "index": ", ".join(sorted(ticker_to_index[ticker])),
+            "market_cap_B": None
         })
 
 # =========================
@@ -67,7 +72,7 @@ for ticker in all_tickers:
 # =========================
 df = pd.DataFrame(
     rows,
-    columns=["ticker", "name", "sector", "index"]
+    columns=["ticker", "name", "sector", "index", "market_cap_B"]
 )
 
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
