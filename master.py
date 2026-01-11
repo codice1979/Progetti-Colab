@@ -22,7 +22,8 @@ from my_tickers import get_all_tickers
 # =========================
 configs = [
     {"poc_period": 20, "soglia_poc": 15},
-    {"poc_period": 5, "soglia_poc": 5}
+    {"poc_period": 5,  "soglia_poc": 5},
+    {"poc_period": 2,  "soglia_poc": 3}   # 👈 NUOVA CONFIG
 ]
 
 week_number = datetime.now().isocalendar()[1]
