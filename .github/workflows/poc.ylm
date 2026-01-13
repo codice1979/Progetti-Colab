@@ -1,0 +1,51 @@
+name: POC Scan
+
+on:
+  workflow_dispatch:   # avvio manuale
+  schedule:
+    - cron: "0 6 * * 1"   # ogni lunedì alle 06:00 (opzionale)
+
+jobs:
+  run-poc:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # =========================
+      # RUN 1 — POC 20y / 15%
+      # =========================
+      - name: Run POC 20y (15%)
+        run: |
+          python data/poc_all_tickers.py \
+            --poc_period 20 \
+            --soglia_poc 15
+
+      # =========================
+      # RUN 2 — POC 5y / 5%
+      # =========================
+      - name: Run POC 5y (5%)
+        run: |
+          python data/poc_all_tickers.py \
+            --poc_period 5 \
+            --soglia_poc 5
+
+      # =========================
+      # RUN 3 — POC 2y / 3%
+      # =========================
+      - name: Run POC 2y (3%)
+        run: |
+          python data/poc_all_tickers.py \
+            --poc_period 2 \
+            --soglia_poc 3
