@@ -1,0 +1,39 @@
+name: POC Single Ticker Debug
+
+on:
+  workflow_dispatch:   # Avvio manuale
+  # schedule:
+  #   - cron: '0 6 * * 1-5'   # opzionale: lun–ven mattina
+
+jobs:
+  run-poc-single:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 3️⃣ Install dipendenze
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas numpy yfinance openpyxl
+
+      # 4️⃣ Run script POC singolo ticker
+      - name: Run POC single ticker
+        run: |
+          python data/poc_single_ticker_debug.py
+
+      # 5️⃣ Upload Excel come artifact
+      - name: Upload Excel output
+        uses: actions/upload-artifact@v4
+        with:
+          name: poc-single-output
+          path: output/*.xlsx
