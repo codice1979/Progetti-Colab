@@ -1,6 +1,4 @@
-
 # === Importa funzione get_all_tickers da my_tickers.py ===
-
 from my_tickers import get_all_tickers
  
 import pandas as pd
@@ -24,7 +22,6 @@ poc_period = f"{args.poc_period}y"   # ← conversione automatica in formato yfi
 soglia_poc = args.soglia_poc
 filter_start_date = pd.to_datetime("2000-01-01")
 
- 
 # === Funzioni storiche ===
 def get_hist(ticker, period):
     try:
@@ -65,11 +62,10 @@ def get_poc_daily(ticker, period="5y", bins=200):
             col_map[col] = 'Volume'
     df = df.rename(columns=col_map)
  
-    # Check for required columns after renaming
+    # Check for required columns
     if 'High' not in df.columns or 'Low' not in df.columns or 'Volume' not in df.columns:
         print(f"Missing required columns (High, Low, Volume) for POC calculation on {ticker}")
         return None
- 
  
     price_min = df["Low"].min()
     price_max = df["High"].max()
@@ -81,36 +77,28 @@ def get_poc_daily(ticker, period="5y", bins=200):
  
     for _, row in df.iterrows():
         if row["High"] > row["Low"] and row["Volume"] > 0:
-             # Find the indices of the bins covered by the High-Low range
             low_bin_idx = np.searchsorted(price_bins, row["Low"], side='right') - 1
             high_bin_idx = np.searchsorted(price_bins, row["High"], side='left')
  
-            # Ensure indices are valid and low <= high
             low_bin_idx = max(0, min(low_bin_idx, len(price_bins) - 2))
             high_bin_idx = max(0, min(high_bin_idx, len(price_bins) - 1))
  
- 
             if high_bin_idx > low_bin_idx:
                 bins_covered = np.arange(low_bin_idx, high_bin_idx)
-                if len(bins_covered) > 0:
-                    vol_share = row["Volume"] / len(bins_covered)
-                    volume_profile[bins_covered] += vol_share
-            elif high_bin_idx == low_bin_idx and low_bin_idx < len(price_bins) -1: # Handle case where High and Low fall in the same bin
-                 volume_profile[low_bin_idx] += row["Volume"] # Add all volume to that bin
- 
+                vol_share = row["Volume"] / len(bins_covered)
+                volume_profile[bins_covered] += vol_share
+            elif high_bin_idx == low_bin_idx and low_bin_idx < len(price_bins) - 1:
+                volume_profile[low_bin_idx] += row["Volume"]
  
     if volume_profile.sum() == 0:
         return None
  
     poc_index = np.argmax(volume_profile)
-    # Ensure poc_index is a valid index for price_bins
-    if poc_index >= len(price_bins) -1:
-        poc_index = len(price_bins) - 2 # Fallback to the last valid bin midpoint
- 
+    if poc_index >= len(price_bins) - 1:
+        poc_index = len(price_bins) - 2
  
     poc_price = (price_bins[poc_index] + price_bins[poc_index + 1]) / 2
     return poc_price
- 
  
 # === Recupera tutti i ticker con indice ===
 ticker_dict = get_all_tickers(flat=False)
@@ -141,6 +129,17 @@ for ticker in all_tickers:
  
         distanza_poc = (current_price - poc_price) / poc_price * 100
  
+        # === DEBUG SOLO PER P911.DE ===
+        if ticker == "P911.DE":
+            print("\n📊 DEBUG P911.DE")
+            print(f"Periodo POC      : {poc_period}")
+            print(f"POC              : {poc_price:.6f}")
+            print(f"Prezzo attuale   : {current_price:.6f}")
+            print(f"Distanza POC %   : {distanza_poc:.6f}")
+            print(f"Soglia applicata : {soglia_poc}")
+            print("PASSA FILTRO     :", abs(distanza_poc) <= soglia_poc)
+            print("-" * 60)
+ 
         if abs(distanza_poc) <= soglia_poc:
             df_all = get_hist(ticker, period="max")
             if df_all.empty or "Close" not in df_all.columns:
@@ -168,21 +167,7 @@ for ticker in all_tickers:
     except Exception as e:
         print(f"Errore con {ticker}: {e}")
         continue
-
-        # === DEBUG SOLO PER P911.DE ===
-        if ticker == "P911.DE":
-            print("\n📊 DEBUG P911.DE")
-            print(f"Periodo POC      : {poc_period}")
-            print(f"POC              : {poc_price}")
-            print(f"Prezzo attuale   : {current_price}")
-            print(f"Distanza POC %   : {distanza_poc}")
-            print(f"Soglia applicata : {soglia_poc}")
-
-            if abs(distanza_poc) <= soglia_poc:
-                print("✅ PASSA filtro POC")
-            else:
-                print("❌ NON passa filtro POC")
-
+ 
 # === Risultati ===
 df_risultati = pd.DataFrame(risultati)
  
@@ -190,12 +175,9 @@ if df_risultati.empty:
     print("⚠ Nessun titolo ha passato i filtri sulla distanza dal POC o non ha dati storici sufficienti.")
 else:
     df_risultati = df_risultati.sort_values(by="Current Drawdown %", ascending=False)
- 
-    # Stampare l'intero DataFrame come testo
     print(df_risultati.to_string())
  
-  
-# === Salvataggio file Excel (sovrascrivibile nella stessa settimana) ===
+# === Salvataggio file Excel ===
 week_number = datetime.now().isocalendar()[1]
 
 BASE = os.path.dirname(os.path.abspath(__file__))  # = data/
@@ -208,6 +190,3 @@ file_path = os.path.join(OUTPUT_DIR, file_name)
 df_risultati.to_excel(file_path, index=False)
 
 print(f"\n✅ File salvato (sovrascritto se esiste): {file_path}")
- 
-
-
