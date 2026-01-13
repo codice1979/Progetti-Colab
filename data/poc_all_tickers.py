@@ -168,7 +168,21 @@ for ticker in all_tickers:
     except Exception as e:
         print(f"Errore con {ticker}: {e}")
         continue
- 
+
+        # === DEBUG SOLO PER P911.DE ===
+        if ticker == "P911.DE":
+            print("\n📊 DEBUG P911.DE")
+            print(f"Periodo POC      : {poc_period}")
+            print(f"POC              : {poc_price}")
+            print(f"Prezzo attuale   : {current_price}")
+            print(f"Distanza POC %   : {distanza_poc}")
+            print(f"Soglia applicata : {soglia_poc}")
+
+            if abs(distanza_poc) <= soglia_poc:
+                print("✅ PASSA filtro POC")
+            else:
+                print("❌ NON passa filtro POC")
+
 # === Risultati ===
 df_risultati = pd.DataFrame(risultati)
  
@@ -195,4 +209,5 @@ df_risultati.to_excel(file_path, index=False)
 
 print(f"\n✅ File salvato (sovrascritto se esiste): {file_path}")
  
+
 
