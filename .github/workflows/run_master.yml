@@ -5,6 +5,11 @@ on:
     # Dal lunedì al venerdì alle 23:55 UTC (≈ 00:55 Italia)
     - cron: '55 23 * * 1-5'
   workflow_dispatch:
+    inputs:
+      debug_ticker:
+        description: 'Inserisci il ticker da debuggare (lascia vuoto per run normale)'
+        required: false
+        default: ''
 
 jobs:
   run-master:
@@ -37,7 +42,12 @@ jobs:
       # 4️⃣ SuperTrend / POC
       - name: Run Master Script (SuperTrend senza TA-Lib)
         run: |
-          python master.py
+          if [ -n "${{ github.event.inputs.debug_ticker }}" ]; then
+            echo "🔥 Eseguo con debug su ticker ${{ github.event.inputs.debug_ticker }}"
+            python master.py --debug_ticker ${{ github.event.inputs.debug_ticker }}
+          else
+            python master.py
+          fi
 
       # 5️⃣ Key Reversal
       - name: Run Key Reversal Script
