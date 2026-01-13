@@ -15,7 +15,11 @@ warnings.simplefilter('ignore', category=FutureWarning)
 parser = argparse.ArgumentParser(description="POC all tickers")
 parser.add_argument("--poc_period", type=int, required=True, help="Periodo POC in anni (es. 5 = 5y)")
 parser.add_argument("--soglia_poc", type=int, required=True, help="Soglia distanza POC in percentuale")
+parser.add_argument("--debug_ticker", type=str, default=None, help="Ticker da usare per debug (es. P911.DE)")
 args = parser.parse_args()
+
+# Variabile debug
+debug_ticker = args.debug_ticker
 
 # === Parametri principali ===
 poc_period = f"{args.poc_period}y"   # ← conversione automatica in formato yfinance
@@ -128,10 +132,10 @@ for ticker in all_tickers:
         current_price = float(df_hist["Close"].iloc[-1])
  
         distanza_poc = (current_price - poc_price) / poc_price * 100
- 
-        # === DEBUG SOLO PER P911.DE ===
-        if ticker == "P911.DE":
-            print("\n📊 DEBUG P911.DE")
+
+        # === DEBUG OPZIONALE ===
+        if debug_ticker is not None and ticker == debug_ticker:
+            print(f"\n📊 DEBUG {ticker}")
             print(f"Periodo POC      : {poc_period}")
             print(f"POC              : {poc_price:.6f}")
             print(f"Prezzo attuale   : {current_price:.6f}")
