@@ -52,84 +52,107 @@ if ticker_col is None:
 print(f"✅ Colonna ticker usata: {ticker_col}")
 
 # =========================
-# FUNZIONI SUPERTREND (NO TA-LIB)
+# PARAMETRI SUPERTREND (TV)
 # =========================
 ATR_PERIOD = 10
 MULTIPLIER = 3.0
 
+# =========================
+# FUNZIONI SUPERTREND TV-ALIGNED
+# =========================
 def clean_df(df):
-    """Pulizia dataframe yfinance"""
     if df.empty:
         return df
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [c[0] for c in df.columns]
-    for col in ['High','Low','Close']:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-    df = df.dropna(subset=['High','Low','Close'])
-    return df
+    for col in ["High", "Low", "Close"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df.dropna(subset=["High", "Low", "Close"])
 
-def calculate_atr(high, low, close, period=ATR_PERIOD):
-    """ATR manuale in stile TradingView"""
-    high = np.asarray(high, dtype=float)
-    low = np.asarray(low, dtype=float)
-    close = np.asarray(close, dtype=float)
+def calculate_atr(high, low, close, period):
+    high, low, close = map(np.asarray, (high, low, close))
 
-    tr_list = np.maximum(high[1:] - low[1:], 
-                         np.maximum(np.abs(high[1:] - close[:-1]), 
-                                    np.abs(low[1:] - close[:-1])))
-    atr = np.zeros_like(close)
-    atr[:period] = np.nan
-    atr[period] = np.mean(tr_list[:period])
-    for i in range(period+1, len(close)):
-        atr[i] = (atr[i-1]*(period-1) + tr_list[i-1])/period
+    tr = np.maximum(
+        high[1:] - low[1:],
+        np.maximum(
+            np.abs(high[1:] - close[:-1]),
+            np.abs(low[1:] - close[:-1])
+        )
+    )
+
+    atr = np.full(len(close), np.nan)
+    atr[period] = tr[:period].mean()
+
+    for i in range(period + 1, len(close)):
+        atr[i] = (atr[i - 1] * (period - 1) + tr[i - 1]) / period
+
     return atr
 
-def supertrend_tv(high, low, close, period=ATR_PERIOD, multiplier=MULTIPLIER):
-    """Calcolo SuperTrend in stile TradingView"""
-    high = np.asarray(high, dtype=float)
-    low = np.asarray(low, dtype=float)
-    close = np.asarray(close, dtype=float)
-
-    if len(close) < period:
+def supertrend_tv(high, low, close, period, multiplier):
+    atr = calculate_atr(high, low, close, period)
+    if np.all(np.isnan(atr)):
         return np.full(len(close), np.nan)
 
-    atr = calculate_atr(high, low, close, period)
     hl2 = (high + low) / 2
-    upperband = hl2 + multiplier*atr
-    lowerband = hl2 - multiplier*atr
+    upper_basic = hl2 + multiplier * atr
+    lower_basic = hl2 - multiplier * atr
 
+    upper_final = np.copy(upper_basic)
+    lower_final = np.copy(lower_basic)
     st = np.full(len(close), np.nan)
-    direction = np.full(len(close), 1)
+    direction = np.ones(len(close))
 
-    first_valid = np.where(~np.isnan(atr))[0][0]
-    st[first_valid] = upperband[first_valid]
+    first = np.where(~np.isnan(atr))[0][0]
+    st[first] = lower_final[first]
 
-    for i in range(first_valid+1, len(close)):
-        prev_st = st[i-1]
-        if close[i] > prev_st:
+    for i in range(first + 1, len(close)):
+        upper_final[i] = (
+            min(upper_basic[i], upper_final[i - 1])
+            if close[i - 1] <= upper_final[i - 1]
+            else upper_basic[i]
+        )
+        lower_final[i] = (
+            max(lower_basic[i], lower_final[i - 1])
+            if close[i - 1] >= lower_final[i - 1]
+            else lower_basic[i]
+        )
+
+        if close[i] > upper_final[i - 1]:
             direction[i] = 1
-        else:
+        elif close[i] < lower_final[i - 1]:
             direction[i] = -1
+        else:
+            direction[i] = direction[i - 1]
 
-        st[i] = max(lowerband[i], prev_st) if direction[i]==1 else min(upperband[i], prev_st)
+        st[i] = lower_final[i] if direction[i] == 1 else upper_final[i]
 
-    st[:first_valid] = st[first_valid]
+    st[:first] = st[first]
     return st
 
 def compute_st_and_delta(df):
-    """Restituisce ST ultimo valore, Close ultimo, Delta %"""
     df = clean_df(df)
-    if df.empty or len(df) < ATR_PERIOD:
+    if len(df) < ATR_PERIOD * 3:
         return np.nan, np.nan, np.nan
-    st = supertrend_tv(df['High'].values, df['Low'].values, df['Close'].values)
+
+    st = supertrend_tv(
+        df["High"].values,
+        df["Low"].values,
+        df["Close"].values,
+        ATR_PERIOD,
+        MULTIPLIER
+    )
+
     st_last = float(st[-1])
-    close_last = float(df['Close'].iloc[-1])
-    delta_pct = ((close_last - st_last)/st_last)*100 if st_last != 0 else np.nan
-    return st_last, close_last, delta_pct
+    close_last = float(df["Close"].iloc[-1])
+
+    if st_last <= 0:
+        return np.nan, close_last, np.nan
+
+    delta = (close_last - st_last) / st_last * 100
+    return st_last, close_last, delta
 
 # =========================
-# CALCOLO ST MULTI-TIMEFRAME
+# CALCOLO ST MULTI-TIMEFRAME (TV)
 # =========================
 rows = []
 
@@ -137,22 +160,22 @@ tickers = df_poc[ticker_col].dropna().astype(str).unique()
 
 for ticker in tickers:
     try:
-        df_4h = yf.download(ticker, period="60d", interval="4h", progress=False, auto_adjust=True)
-        df_d = yf.download(ticker, period="6mo", interval="1d", progress=False, auto_adjust=True)
-        df_w = yf.download(ticker, period="1y", interval="1wk", progress=False, auto_adjust=True)
-        df_m = yf.download(ticker, period="2y", interval="1mo", progress=False, auto_adjust=True)
+        df_4h = yf.download(ticker, period="120d", interval="4h", auto_adjust=False, progress=False)
+        df_d  = yf.download(ticker, period="1y",   interval="1d", auto_adjust=False, progress=False)
+        df_w  = yf.download(ticker, period="5y",   interval="1wk", auto_adjust=False, progress=False)
+        df_m  = yf.download(ticker, period="10y",  interval="1mo", auto_adjust=False, progress=False)
 
-        st_4h, close_4h, delta_4h = compute_st_and_delta(df_4h)
-        st_d, close_d, delta_d = compute_st_and_delta(df_d)
-        st_w, close_w, delta_w = compute_st_and_delta(df_w)
-        st_m, close_m, delta_m = compute_st_and_delta(df_m)
+        _, _, delta_4h = compute_st_and_delta(df_4h)
+        _, _, delta_d  = compute_st_and_delta(df_d)
+        _, _, delta_w  = compute_st_and_delta(df_w)
+        _, _, delta_m  = compute_st_and_delta(df_m)
 
         rows.append({
             ticker_col: ticker,
-            "ST_4H_Delta%": round(delta_4h,2),
-            "ST_Daily_Delta%": round(delta_d,2),
-            "ST_Weekly_Delta%": round(delta_w,2),
-            "ST_Monthly_Delta%": round(delta_m,2),
+            "ST_4H_Delta%": round(delta_4h, 2),
+            "ST_Daily_Delta%": round(delta_d, 2),
+            "ST_Weekly_Delta%": round(delta_w, 2),
+            "ST_Monthly_Delta%": round(delta_m, 2),
         })
 
     except Exception as e:
