@@ -31,16 +31,9 @@ def calculate_drawdowns(prices):
     drawdown = (cummax - prices) / cummax * 100
     return drawdown.max(), drawdown.mean(), drawdown.iloc[-1]
 
-def get_poc_daily(ticker, period="5y", bins=200):
-    df = yf.download(
-        ticker,
-        period=period,
-        interval="1d",
-        progress=False,
-        auto_adjust=False
-    )
-
-    if df.empty:
+def get_poc_from_df(df, bins=200):
+    """Calcolo POC generico da dataframe (daily o intraday)"""
+    if df is None or df.empty:
         return None
 
     if isinstance(df.columns, pd.MultiIndex):
@@ -85,6 +78,33 @@ def get_poc_daily(ticker, period="5y", bins=200):
     i = np.argmax(volume_profile)
     return (price_bins[i] + price_bins[i + 1]) / 2
 
+def get_poc_daily(ticker, period="5y"):
+    df = yf.download(
+        ticker,
+        period=period,
+        interval="1d",
+        progress=False,
+        auto_adjust=False
+    )
+    return get_poc_from_df(df)
+
+def get_poc_hourly_last_n_bars(ticker, n_bars=90):
+    """POC orario sulle ultime N candele"""
+    # yfinance limita i dati intraday → scarichiamo abbastanza dati
+    df = yf.download(
+        ticker,
+        period="60d",     # abbastanza per avere > 90 barre 1h
+        interval="1h",
+        progress=False,
+        auto_adjust=False
+    )
+
+    if df.empty:
+        return None
+
+    df = df.tail(n_bars)  # ultime N candele
+    return get_poc_from_df(df)
+
 # =========================
 # ESECUZIONE
 # =========================
@@ -100,8 +120,21 @@ close_prices = df_all["Close"]
 ath = close_prices.max()
 max_dd, avg_dd, current_dd = calculate_drawdowns(close_prices)
 
+# 🔥 POC ORARIO (solo informativo)
+poc_1h_90 = get_poc_hourly_last_n_bars(TICKER, n_bars=90)
+dist_poc_1h = (current_price - poc_1h_90) / poc_1h_90 * 100 if poc_1h_90 else np.nan
+
 print(f"\n📊 TICKER: {TICKER}")
 print(f"Prezzo attuale: {current_price:.2f}")
+print("-" * 60)
+
+print(
+    f"POC 1H (90 barre) | "
+    f"POC={poc_1h_90:.2f} | "
+    f"Distanza={dist_poc_1h:.2f}% | "
+    f"(solo informativo)"
+)
+
 print("-" * 60)
 
 for cfg in POC_CONFIGS:
@@ -126,6 +159,8 @@ for cfg in POC_CONFIGS:
         "Distanza POC %": distanza,
         "Soglia %": cfg["soglia"],
         "Passa filtro": passa,
+        "POC_1H_90": poc_1h_90,
+        "Dist_POC_1H_90_%": dist_poc_1h,
         "All Time High": ath,
         "Max Drawdown %": max_dd,
         "Avg Drawdown %": avg_dd,
