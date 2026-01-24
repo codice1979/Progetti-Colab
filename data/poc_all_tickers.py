@@ -31,7 +31,7 @@ def get_hist(ticker, period):
     try:
         df = yf.download(ticker, period=period, progress=False)
 
-        # ✅ FIX MINIMO: gestione MultiIndex e colonne duplicate
+        # ✅ FIX MINIMO: gestione MultiIndex e colonne duplicate (LOW, BRK.B, ecc.)
         if isinstance(df.columns, pd.MultiIndex):
             df = df.droplevel(1, axis=1)
 
@@ -59,19 +59,22 @@ def get_poc_daily(ticker, period="5y", bins=200):
         print(f"Errore download POC data for {ticker}: {e}")
         return None
  
-    # Ensure column names are simple (not MultiIndex)
+    # ✅ FIX ROBUSTO COLONNE (LOW, MultiIndex, ticker strani)
     if isinstance(df.columns, pd.MultiIndex):
-        df.columns = ["_".join(map(str, col)).strip() for col in df.columns]
- 
+        df.columns = df.columns.get_level_values(0)
+
+    df.columns = [str(c).strip() for c in df.columns]
+
     # Map to standard column names if necessary (case-insensitive)
     col_map = {}
     for col in df.columns:
-        if 'high' in col.lower():
-            col_map[col] = 'High'
-        elif 'low' in col.lower():
-            col_map[col] = 'Low'
-        elif 'volume' in col.lower():
-            col_map[col] = 'Volume'
+        cl = col.lower()
+        if cl == "high":
+            col_map[col] = "High"
+        elif cl == "low":
+            col_map[col] = "Low"
+        elif cl == "volume":
+            col_map[col] = "Volume"
     df = df.rename(columns=col_map)
  
     # Check for required columns
