@@ -63,10 +63,19 @@ MULTIPLIER = 3.0
 def clean_df(df):
     if df.empty:
         return df
+
+    # ✅ FIX MINIMO per yfinance MultiIndex (causa errore Series)
     if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [c[0] for c in df.columns]
+        df = df.droplevel(1, axis=1)
+
+    # sicurezza extra (non cambia logica)
+    df = df.rename(columns=lambda x: x.strip())
+
     for col in ["High", "Low", "Close"]:
+        if col not in df.columns:
+            return pd.DataFrame()
         df[col] = pd.to_numeric(df[col], errors="coerce")
+
     return df.dropna(subset=["High", "Low", "Close"])
 
 def calculate_atr(high, low, close, period):
@@ -142,10 +151,11 @@ def compute_st_and_delta(df):
         MULTIPLIER
     )
 
-    st_last = float(st[-1])
+    # ✅ FIX MINIMO: evita Series invece di float
+    st_last = float(st[-1]) if np.ndim(st) == 1 else float(st.iloc[-1])
     close_last = float(df["Close"].iloc[-1])
 
-    if st_last <= 0:
+    if st_last <= 0 or np.isnan(st_last):
         return np.nan, close_last, np.nan
 
     delta = (close_last - st_last) / st_last * 100
