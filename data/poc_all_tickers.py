@@ -30,6 +30,14 @@ filter_start_date = pd.to_datetime("2000-01-01")
 def get_hist(ticker, period):
     try:
         df = yf.download(ticker, period=period, progress=False)
+
+        # ✅ FIX MINIMO: gestione MultiIndex e colonne duplicate
+        if isinstance(df.columns, pd.MultiIndex):
+            df = df.droplevel(1, axis=1)
+
+        if "Close" in df.columns and isinstance(df["Close"], pd.DataFrame):
+            df["Close"] = df["Close"].iloc[:, 0]
+
         return df
     except Exception as e:
         print(f"Errore storico {ticker}: {e}")
@@ -129,7 +137,12 @@ for ticker in all_tickers:
         df_hist = get_hist(ticker, period="1d")
         if df_hist.empty or "Close" not in df_hist.columns:
             continue
-        current_price = float(df_hist["Close"].iloc[-1])
+
+        # ✅ FIX MINIMO: Close sempre Series
+        close_col = df_hist["Close"]
+        if isinstance(close_col, pd.DataFrame):
+            close_col = close_col.iloc[:, 0]
+        current_price = float(close_col.iloc[-1])
  
         distanza_poc = (current_price - poc_price) / poc_price * 100
 
@@ -153,6 +166,9 @@ for ticker in all_tickers:
                 continue
  
             close_prices = df_filtered["Close"]
+            if isinstance(close_prices, pd.DataFrame):
+                close_prices = close_prices.iloc[:, 0]
+
             all_time_high = close_prices.max()
             max_dd, avg_dd, current_dd = calculate_drawdowns(close_prices)
  
