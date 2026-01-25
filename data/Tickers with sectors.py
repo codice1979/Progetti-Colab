@@ -15,6 +15,41 @@ from my_tickers import get_all_tickers
 print("✅ Funzione get_all_tickers importata correttamente.")
 
 # =========================
+# FIX UNIVERSALE YFINANCE (MultiIndex / Series)
+# =========================
+def normalize_yf_df(df):
+    if df is None or df.empty:
+        return df
+
+    # MultiIndex → colonne flat
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = ["_".join(map(str, col)).strip() for col in df.columns]
+
+    # mapping colonne
+    rename_map = {}
+    for c in df.columns:
+        cl = c.lower()
+        if "close" in cl:
+            rename_map[c] = "Close"
+        elif "high" in cl:
+            rename_map[c] = "High"
+        elif "low" in cl:
+            rename_map[c] = "Low"
+        elif "open" in cl:
+            rename_map[c] = "Open"
+        elif "volume" in cl:
+            rename_map[c] = "Volume"
+
+    df = df.rename(columns=rename_map)
+
+    # Close sempre Series
+    if "Close" in df.columns and isinstance(df["Close"], pd.DataFrame):
+        df["Close"] = df["Close"].iloc[:, 0]
+
+    return df
+
+
+# =========================
 # FUNZIONI POC ORARIO (240 barre)
 # =========================
 
@@ -76,6 +111,8 @@ def get_poc_hourly_240(ticker):
             auto_adjust=False
         )
 
+        df = normalize_yf_df(df)  # ✅ FIX
+
         if df.empty:
             return None
 
@@ -126,7 +163,9 @@ for ticker in all_tickers:
         price = info.get("currentPrice")
         if price is None:
             df_last = yf.download(ticker, period="1d", progress=False)
-            if not df_last.empty:
+            df_last = normalize_yf_df(df_last)  # ✅ FIX
+
+            if not df_last.empty and "Close" in df_last.columns:
                 price = float(df_last["Close"].iloc[-1])
 
         # ✅ POC ORARIO
