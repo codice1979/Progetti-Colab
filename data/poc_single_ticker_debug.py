@@ -10,7 +10,7 @@ warnings.simplefilter('ignore', category=FutureWarning)
 # =========================
 # CONFIG
 # =========================
-TICKER = "P911.DE"
+TICKER = "PYPL"
 
 POC_CONFIGS = [
     {"poc_period": "20y", "soglia": 15},
