@@ -23,13 +23,22 @@ filter_start_date = pd.to_datetime("2000-01-01")
 # =========================
 # FUNZIONI
 # =========================
+
 def get_hist(ticker, period):
-    return yf.download(ticker, period=period, progress=False)
+    df = yf.download(ticker, period=period, progress=False)
+
+    # 🔥 FIX MultiIndex
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [col[0] for col in df.columns]
+
+    return df
+
 
 def calculate_drawdowns(prices):
     cummax = prices.cummax()
     drawdown = (cummax - prices) / cummax * 100
     return drawdown.max(), drawdown.mean(), drawdown.iloc[-1]
+
 
 def get_poc_from_df(df, bins=200):
     """Calcolo POC generico da dataframe (daily o intraday)"""
@@ -52,6 +61,7 @@ def get_poc_from_df(df, bins=200):
 
     price_min = df["Low"].min()
     price_max = df["High"].max()
+
     if price_min == price_max:
         return None
 
@@ -60,6 +70,7 @@ def get_poc_from_df(df, bins=200):
 
     for _, row in df.iterrows():
         if row["High"] > row["Low"] and row["Volume"] > 0:
+
             low_idx = np.searchsorted(price_bins, row["Low"], side="right") - 1
             high_idx = np.searchsorted(price_bins, row["High"], side="left")
 
@@ -78,6 +89,7 @@ def get_poc_from_df(df, bins=200):
     i = np.argmax(volume_profile)
     return (price_bins[i] + price_bins[i + 1]) / 2
 
+
 def get_poc_daily(ticker, period="5y"):
     df = yf.download(
         ticker,
@@ -86,14 +98,20 @@ def get_poc_daily(ticker, period="5y"):
         progress=False,
         auto_adjust=False
     )
+
+    # 🔥 FIX MultiIndex
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [col[0] for col in df.columns]
+
     return get_poc_from_df(df)
+
 
 def get_poc_hourly_last_n_bars(ticker, n_bars=90):
     """POC orario sulle ultime N candele"""
-    # yfinance limita i dati intraday → scarichiamo abbastanza dati
+
     df = yf.download(
         ticker,
-        period="60d",     # abbastanza per avere > 90 barre 1h
+        period="60d",
         interval="1h",
         progress=False,
         auto_adjust=False
@@ -102,12 +120,19 @@ def get_poc_hourly_last_n_bars(ticker, n_bars=90):
     if df.empty:
         return None
 
-    df = df.tail(n_bars)  # ultime N candele
+    # 🔥 FIX MultiIndex
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [col[0] for col in df.columns]
+
+    df = df.tail(n_bars)
+
     return get_poc_from_df(df)
+
 
 # =========================
 # ESECUZIONE
 # =========================
+
 results = []
 
 df_last = get_hist(TICKER, "1d")
@@ -120,7 +145,7 @@ close_prices = df_all["Close"]
 ath = close_prices.max()
 max_dd, avg_dd, current_dd = calculate_drawdowns(close_prices)
 
-# 🔥 POC ORARIO (solo informativo)
+# 🔥 POC ORARIO
 poc_1h_90 = get_poc_hourly_last_n_bars(TICKER, n_bars=90)
 dist_poc_1h = (current_price - poc_1h_90) / poc_1h_90 * 100 if poc_1h_90 else np.nan
 
@@ -128,19 +153,27 @@ print(f"\n📊 TICKER: {TICKER}")
 print(f"Prezzo attuale: {current_price:.2f}")
 print("-" * 60)
 
-print(
-    f"POC 1H (90 barre) | "
-    f"POC={poc_1h_90:.2f} | "
-    f"Distanza={dist_poc_1h:.2f}% | "
-    f"(solo informativo)"
-)
+if poc_1h_90:
+    print(
+        f"POC 1H (90 barre) | "
+        f"POC={poc_1h_90:.2f} | "
+        f"Distanza={dist_poc_1h:.2f}% | "
+        f"(solo informativo)"
+    )
+else:
+    print("POC 1H non calcolabile")
 
 print("-" * 60)
 
 for cfg in POC_CONFIGS:
-    poc = get_poc_daily(TICKER, period=cfg["poc_period"])
-    distanza = (current_price - poc) / poc * 100
 
+    poc = get_poc_daily(TICKER, period=cfg["poc_period"])
+
+    if poc is None:
+        print(f"POC {cfg['poc_period']} non calcolabile")
+        continue
+
+    distanza = (current_price - poc) / poc * 100
     passa = abs(distanza) <= cfg["soglia"]
 
     print(
@@ -167,15 +200,18 @@ for cfg in POC_CONFIGS:
         "Current Drawdown %": current_dd
     })
 
+
 # =========================
 # SALVATAGGIO
 # =========================
+
 df = pd.DataFrame(results)
 
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 week = datetime.now().isocalendar()[1]
+
 file_path = os.path.join(
     OUTPUT_DIR,
     f"POC_DEBUG_{TICKER}_week_{week}.xlsx"
